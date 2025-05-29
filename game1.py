@@ -127,6 +127,90 @@ class LevelSelector:
         return None
 
 
+class Command:
+    def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None):
+        self.cmd_type = cmd_type
+        self.iterations = iterations
+        self.nested_commands = nested_commands if nested_commands is not None else []
+        self.rect = rect if rect is not None else pygame.Rect(0, 0, 210, 25)
+
+        # Command properties (previously in the dictionary)
+        self.color = self._get_color()
+        self.text = self._get_text()
+
+    def _get_color(self):
+        colors = {
+            "move": (0, 100, 200),
+            "turn_left": (200, 100, 0),
+            "turn_right": (20, 100, 0),
+            "reverse": (250, 100, 0),
+            "shoot": (250, 100, 0),
+            "for_loop": FOR_LOOP_COLOR
+        }
+        return colors.get(self.cmd_type, (100, 100, 100))  # Default gray
+
+    def _get_text(self):
+        texts = {
+            "move": "Move Forward",
+            "turn_left": "Turn Left",
+            "turn_right": "Turn Right",
+            "reverse": "Reverse",
+            "shoot": "Shoot",
+            "for_loop": "For Loop"
+        }
+        return texts.get(self.cmd_type, "Unknown")
+
+    def is_loop(self):
+        return self.cmd_type == "for_loop"
+
+    def draw(self, surface, x, y, width, indent=0, is_nested=False):
+        """Recursively draw the command and its nested commands"""
+        # Set the command's rectangle
+        self.rect = pygame.Rect(
+            x + indent,
+            y,
+            width - indent,
+            25 if not self.is_loop() else 40  # Base height
+        )
+
+        # Draw the command itself
+        pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
+        pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
+
+        if self.is_loop():
+            # Draw loop header
+            self._draw_loop_header(surface)
+
+            # Recursively draw nested commands
+            nested_y = y + 40
+            for nested_cmd in self.nested_commands:
+                nested_height = nested_cmd.draw(
+                    surface,
+                    x,
+                    nested_y,
+                    width - 20,  # Reduce width for nesting
+                    indent + 20,  # Add indentation
+                    True  # Mark as nested
+                )
+                nested_y += nested_height
+
+            # Update the loop block's total height
+            self.rect.height = max(40, nested_y - y)
+        else:
+            # Draw regular command text
+            text = code_font.render(self.text, True, WHITE)
+            surface.blit(text, (self.rect.x + 5, self.rect.y + 5))
+
+        return self.rect.height
+
+    def _draw_loop_header(self, surface):
+        """Draw the header part of a loop block"""
+        # Draw "Repeat X times" header
+        header_text = f"Repeat {self.iterations} times:"
+        text_surf = code_font.render(header_text, True, WHITE)
+        surface.blit(text_surf, (self.rect.x + 10, self.rect.y + 10))
+
+
 class Level:
     def __init__(self):
         # Common initialization code
@@ -164,9 +248,16 @@ class Level:
             "reverse": {"color": (250, 100, 0), "text": "Reverse"},
             "shoot": {"color": (250, 100, 0), "text": "Shoot"}
         }
+        self._init_commands()
 
     def reset_level(self):
         self.__init__()
+
+    def _init_commands(self):
+        """Initialize the available command types"""
+        basic_commands = list(self.commands.keys())
+        for cmd_type in basic_commands:
+            self.code_blocks.append(Command(cmd_type))
 
     def shoot_bullet(self):
         current_time = pygame.time.get_ticks()
@@ -293,93 +384,32 @@ class Level:
         pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
 
     def draw_code_blocks(self, surface):
-        # Draw command blocks area
+        # Draw command blocks area (palette)
         pygame.draw.rect(surface, DARK_GRAY, self.commands_area, border_radius=5)
         pygame.draw.rect(surface, WHITE, self.commands_area, 2, border_radius=5)
 
-        # Draw available commands
-        self.code_blocks.clear()
-        for i, (cmd, props) in enumerate(self.commands.items()):
-            rect = pygame.Rect(60 + i * 90, 15, 90, 25)
-            pygame.draw.rect(surface, props["color"], rect, border_radius=3)
-            pygame.draw.rect(surface, WHITE, rect, 2, border_radius=3)
-            text = code_font.render(props["text"], True, WHITE)
-            surface.blit(text, (rect.x + 5, rect.y + 5))
-            self.code_blocks.append({"rect": rect, "type": cmd})
+        # Draw available command palette
+        for i, cmd in enumerate(self.code_blocks):
+            cmd.rect = pygame.Rect(60 + i * 90, 15, 90, 25)
+            pygame.draw.rect(surface, cmd.color, cmd.rect, border_radius=3)
+            pygame.draw.rect(surface, WHITE, cmd.rect, 2, border_radius=3)
+            text = code_font.render(cmd.text, True, WHITE)
+            surface.blit(text, (cmd.rect.x + 5, cmd.rect.y + 5))
 
-        # Draw main code area
+        # Draw main code area background
         pygame.draw.rect(surface, DARK_GRAY, self.code_area, border_radius=5)
         pygame.draw.rect(surface, WHITE, self.code_area, 2, border_radius=5)
 
-        # Draw commands in main area
-        y_offset = 110
+        # Draw all commands recursively
+        y_offset = self.code_area.y + 10
         for cmd in self.main_code:
-            if cmd["type"] == "for_loop":
-                #print(cmd["iterations"])
-                loop_rect = cmd["rect"]
-                pygame.draw.rect(surface, FOR_LOOP_COLOR, cmd["rect"], border_radius=5)
-                pygame.draw.rect(surface, WHITE, cmd["rect"], 2, border_radius=5)
-
-                # Draw loop header with editable iteration count
-                header_text = "Repeat "
-                text_surf = code_font.render(header_text, True, WHITE)
-                surface.blit(text_surf, (cmd["rect"].x + 10, cmd["rect"].y + 10))
-
-                # Draw iteration input box
-                iteration_box = pygame.Rect(
-                    cmd["rect"].x + 10 + text_surf.get_width(),
-                    cmd["rect"].y + 5,
-                    40,
-                    20
-                        )
-                pygame.draw.rect(surface, WHITE, iteration_box, 1)
-                pygame.draw.rect(surface, BLACK, iteration_box)
-
-                # Highlight if currently editing this loop
-                # In draw_code_blocks, change the editing check to:
-                if self.editing_loop_index is not None and self.main_code[self.editing_loop_index] == cmd:
-                    pygame.draw.rect(surface, CYAN, iteration_box, 2)
-
-                iteration_text = code_font.render(str(cmd["iterations"]), True, WHITE)
-                surface.blit(iteration_text, (
-                    iteration_box.x + (iteration_box.width - iteration_text.get_width()) // 2,
-                    iteration_box.y + (iteration_box.height - iteration_text.get_height()) // 2
-                        ))
-
-                times_text = code_font.render("times:", True, WHITE)
-                surface.blit(times_text, (
-                iteration_box.x + iteration_box.width + 5,
-                cmd["rect"].y + 10
-                   ))
-
-                # Draw drop zone highlight if dragging
-                if self.dragging and loop_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(surface, (255, 255, 255, 50), loop_rect, 2, border_radius=5)
-
-                # Draw nested commands
-                nested_y = loop_rect.y + 40
-                #print(cmd["nested_commands"])
-                for nested_cmd in cmd["nested_commands"]:
-
-                    nested_rect = pygame.Rect(loop_rect.x + 20, nested_y, 160, 25)
-                    pygame.draw.rect(surface, self.commands[nested_cmd["type"]]["color"],
-                                     nested_rect, border_radius=3)
-                    pygame.draw.rect(surface, WHITE, nested_rect, 1, border_radius=3)
-                    text = code_font.render(self.commands[nested_cmd["type"]]["text"], True, WHITE)
-                    surface.blit(text, (nested_rect.x + 5, nested_rect.y + 5))
-                    nested_y += 30
-
-                # Update loop block height based on content
-                cmd["rect"].height = 40 + len(cmd["nested_commands"]) * 30
-                y_offset += cmd["rect"].height + 10
-            else:
-                # Regular command
-                cmd["rect"] = pygame.Rect(self.code_area.x + 20, y_offset, 210, 25)
-                pygame.draw.rect(surface, self.commands[cmd["type"]]["color"], cmd["rect"], border_radius=3)
-                pygame.draw.rect(surface, WHITE, cmd["rect"], 1, border_radius=3)
-                text = code_font.render(self.commands[cmd["type"]]["text"], True, WHITE)
-                surface.blit(text, (cmd["rect"].x + 5, cmd["rect"].y + 5))
-                y_offset += 30
+            cmd_height = cmd.draw(
+                surface,
+                self.code_area.x + 10,
+                y_offset,
+                self.code_area.width - 20
+            )
+            y_offset += cmd_height + 5
 
     def check_collision(self):
         # Calculate gun tip position
@@ -440,159 +470,237 @@ class Level:
                 return math.sqrt(dist_x ** 2 + dist_y ** 2) < 40
 
     def handle_events(self, event, mouse_pos):
-        # Common event handling
-        #print(self.editing_loop_index)
+        # Handle mouse button down events
         if event.type == pygame.MOUSEBUTTONDOWN:
+            # Check if clicking on command palette
             for block in self.code_blocks:
-                if block["rect"].collidepoint(mouse_pos):
+                if block.rect.collidepoint(mouse_pos):
                     self.dragging = {
-                        "type": block["type"],
-                        "offset": (mouse_pos[0] - block["rect"].x,
-                                   mouse_pos[1] - block["rect"].y)
+                        "type": block.cmd_type,
+                        "offset": (mouse_pos[0] - block.rect.x,
+                                   mouse_pos[1] - block.rect.y)
                     }
                     return
+
+            # Check if clicking on loop iteration box
             for i, cmd in enumerate(self.main_code):
-                    if cmd["type"] == "for_loop":
-                        # Calculate iteration box position
-                        header_text = "Repeat "
-                        text_width = code_font.size(header_text)[0]
-                        iteration_box = pygame.Rect(
-                            cmd["rect"].x + 10 + text_width,
-                            cmd["rect"].y + 5,
-                            40,
-                            20
-                        )
+                if cmd.is_loop():
+                    iteration_box = self._get_iteration_box(cmd)
+                    if iteration_box.collidepoint(mouse_pos):
+                        self.editing_loop_index = i
+                        self.editing_text = str(cmd.iterations)
+                        return
 
-                        if iteration_box.collidepoint(mouse_pos):
-                            #print(i)
-                            self.editing_loop_index = i
-                            #self.editing_text = str(cmd["iterations"])
-                            return
+            # Clear editing state if clicked elsewhere
+            self.editing_loop_index = None
 
-                        else:
-                            if hasattr(self, 'editing_loop'):
-                                del self.editing_loop
-                                self.editing_loop_index = None
-
-              # If clicked outside any iteration box, stop editing
+        # Handle mouse button up (dropping commands)
         elif event.type == pygame.MOUSEBUTTONUP and self.dragging:
             if self.code_area.collidepoint(mouse_pos):
                 # Check if dropping onto an existing loop block
                 for cmd in self.main_code:
-                    if cmd["type"] == "for_loop" and cmd["rect"].collidepoint(mouse_pos):
-                        # Calculate position within loop block
-                        #print(234)
-                        rel_y = mouse_pos[1] - cmd["rect"].y
+                    if cmd.is_loop() and cmd.rect.collidepoint(mouse_pos):
+                        rel_y = mouse_pos[1] - cmd.rect.y
 
-                        # Only add if dropped below the header (y > 30)
+                        # Only add if dropped in the body area (below header)
                         if True:
                             nested_index = (rel_y - 40) // 30
-                            nested_index = max(0, min(nested_index, len(cmd["nested_commands"])))
+                            nested_index = max(0, min(nested_index, len(cmd.nested_commands)))
 
-                            cmd["nested_commands"].insert(nested_index, {
-                                "type": self.dragging["type"],
-                                "pos": mouse_pos
-                            })
+                            # Create new command of the dragged type
+                            new_cmd = Command(
+                                cmd_type=self.dragging["type"],
+                                iterations=3 if self.dragging["type"] == "for_loop" else 1,
+                                nested_commands=[] if self.dragging["type"] == "for_loop" else None,
+                                rect=pygame.Rect(
+                                    cmd.rect.x + 20,
+                                    cmd.rect.y + 40 + nested_index * 30,
+                                    160 if self.dragging["type"] != "for_loop" else 190,
+                                    25 if self.dragging["type"] != "for_loop" else 40
+                                )
+                            )
+
+                            cmd.nested_commands.insert(nested_index, new_cmd)
                             self.dragging = None
+                            self.recalculate_code_positions()
                             return
 
-                # Otherwise add to main code
+                # If not dropped on a loop, add to main code
                 self.add_to_main_code(self.dragging["type"], mouse_pos)
 
             self.dragging = None
+            self.recalculate_code_positions()
 
+        # Handle iteration count editing
         elif event.type == pygame.KEYDOWN and self.editing_loop_index is not None:
+            cmd = self.main_code[self.editing_loop_index]
 
-            cmd = self.main_code[self.editing_loop_index]  # Get the actual loop block
-            #print(cmd)
             if event.key == pygame.K_RETURN:
-
-                if self.editing_text.isdigit() and int(self.editing_text) >= 0:
-                    cmd["iterations"] = min(99, int(self.editing_text))
-
+                if self.editing_text.isdigit() and int(self.editing_text) > 0:
+                    cmd.iterations = min(99, int(self.editing_text))
                 self.editing_loop_index = None
-
             elif event.key == pygame.K_BACKSPACE:
-
                 self.editing_text = self.editing_text[:-1]
-
             elif event.unicode.isdigit():
                 if len(self.editing_text) < 2:
                     self.editing_text += event.unicode
-                else:
-                    self.editing_text = event.unicode
 
+        # Handle run button
         if self.run_button.is_clicked(mouse_pos, event):
             self.execute_commands()
 
+        # Handle reset button
         if self.reset_button.is_clicked(mouse_pos, event):
             self.main_code = []
+            self.recalculate_code_positions()
 
-    def execute_commands(self):
+    def _get_iteration_box(self, cmd):
+        """Get the rect for the iteration input box of a loop command"""
+        header_text = "Repeat "
+        text_width = code_font.size(header_text)[0]
+        return pygame.Rect(
+            cmd.rect.x + 10 + text_width,
+            cmd.rect.y + 5,
+            40,
+            20
+        )
+
+    """def execute_command(self, mouse_pos, event):
+        step_delay = 500
         for cmd in self.main_code:
             if cmd["type"] == "for_loop":
                 for _ in range(cmd["iterations"]):
-                    for nested_cmd in cmd["nested_commands"]:
-                        self.execute_command(nested_cmd)
+                    for _ in cmd["nested_commands"]:
+                        self.execute_command(mouse_pos, event)
             else:
-                self.execute_command(cmd)
+                if cmd["type"] == "move":
+                    dx = 40 * math.sin(math.radians(self.player_angle))
+                    dy = -100 * math.cos(math.radians(self.player_angle))
+                    self.player_pos[0] += dx
+                    self.player_pos[1] += dy
+
+                    # Boundary checking
+                    self.player_pos[0] = max(self.battlefield.left,
+                                             min(self.player_pos[0], self.battlefield.right - self.player_size))
+                    self.player_pos[1] = max(self.battlefield.top,
+                                             min(self.player_pos[1], self.battlefield.bottom - self.player_size))
+                elif cmd["type"] == "turn_left":
+                    self.player_angle = (self.player_angle - 90) % 360
+
+                elif cmd["type"] == "reverse":
+                    dx = 40 * math.sin(math.radians(self.player_angle))
+                    dy = -40 * math.cos(math.radians(self.player_angle))
+                    self.player_pos[0] -= dx
+                    self.player_pos[1] -= dy
+
+                    # Boundary checking
+                    self.player_pos[0] = max(self.battlefield.left,
+                                             min(self.player_pos[0], self.battlefield.right - self.player_size))
+                    self.player_pos[1] = max(self.battlefield.top,
+                                             min(self.player_pos[1], self.battlefield.bottom - self.player_size))
+
+                elif cmd["type"] == "turn_right":
+                    self.player_angle = (self.player_angle + 90) % 360
+
+                elif cmd["type"] == "shoot":
+                    self.shoot_bullet()
+
+            pygame.time.wait(step_delay)
+            screen.fill(BLACK)
+            self.draw_all(screen, mouse_pos, event)
+            pygame.display.update()"""
+
+
 
     def add_to_main_code(self, command_type, mouse_pos):
         """Add a command or loop block to main code"""
         # Calculate position in code area
         pos_in_area = (mouse_pos[0] - self.code_area.x, mouse_pos[1] - self.code_area.y)
 
-        if command_type == "for_loop":
-            # Find insertion point in main_code based on y position
-            insert_index = len(self.main_code)
-            for i, cmd in enumerate(self.main_code):
-                if cmd["rect"].y > mouse_pos[1]:
-                    insert_index = i
-                    break
+        insert_index = len(self.main_code)
+        for i, cmd in enumerate(self.main_code):
+            if mouse_pos[1] < cmd.rect.centery:
+                insert_index = i
+                break
 
-            self.main_code.insert(insert_index, {
-                "type": "for_loop",
-                "iterations": 3,
-                "nested_commands": [],
-                "rect": pygame.Rect(
+        # Calculate y-position for the new command
+        if insert_index > 0:
+            # Position after the previous command
+            prev_cmd = self.main_code[insert_index - 1]
+            y_pos = prev_cmd.rect.bottom + 10
+        else:
+            # First command in the list
+            y_pos = self.code_area.y + 110
+
+        if command_type == "for_loop":
+            new_cmd = Command(
+                cmd_type="for_loop",
+                iterations=3,
+                nested_commands=[],
+                rect=pygame.Rect(
                     self.code_area.x + 20,
-                    self.code_area.y + 110 + insert_index * 60,  # Initial position
+                    y_pos,
                     210,
                     60  # Initial height
                 )
-            })
+            )
         else:
-            # Regular command - find insertion point
-            insert_index = len(self.main_code)
-            for i, cmd in enumerate(self.main_code):
-                if cmd["rect"].y > mouse_pos[1]:
-                    insert_index = i
-                    break
-
-            self.main_code.insert(insert_index, {
-                "type": command_type,
-                "rect": pygame.Rect(
+            new_cmd = Command(
+                cmd_type=command_type,
+                rect=pygame.Rect(
                     self.code_area.x + 20,
-                    self.code_area.y + 110 + insert_index * 30,
+                    y_pos,
                     210,
                     25
                 )
-            })
+            )
 
-        # Recalculate all positions to avoid overlaps
+        # Insert at the correct position
+        self.main_code.insert(insert_index, new_cmd)
         self.recalculate_code_positions()
 
+    def calculate_command(self,cmd, x, width, indent=0):
+
+
+        # Set basic rectangle properties
+        cmd.rect.x = x + indent
+        cmd.rect.y = y_offset
+        cmd.rect.width = width - indent
+        cmd.rect.height = 25  # Default height
+
+        if cmd.is_loop():
+            cmd.rect.height = 40  # Header height
+            y_offset += 40
+
+            # Calculate nested commands
+            for nested_cmd in cmd.nested_commands:
+                nested_height = calculate_command(
+                    nested_cmd,
+                    x,
+                    width - 20,  # Reduce width for nesting
+                    indent + 20  # Add indentation
+                )
+                cmd.rect.height += nested_height
+
+            # Add some spacing after the loop
+            cmd.rect.height += 5
+            y_offset += 5
+        else:
+            y_offset += 25
+
+        return cmd.rect.height
+
     def recalculate_code_positions(self):
-        """Reposition all code blocks to avoid overlaps"""
-        y_offset = 110
+        """Calculate positions for all commands recursively"""
+        y_offset = self.code_area.y + 10
+
+        # Recalculate all main commands
         for cmd in self.main_code:
-            if cmd["type"] == "for_loop":
-                cmd["rect"].y = y_offset
-                cmd["rect"].height = 40 + len(cmd["nested_commands"]) * 30
-                y_offset += cmd["rect"].height + 10
-            else:
-                cmd["rect"].y = y_offset
-                y_offset += 30
+            self.calculate_command(
+                cmd,
+                self.code_area.x + 10,
+                self.code_area.width - 20
+            )
 
     def draw_popups(self, screen, mouse_pos, event):
         """To be implemented by subclasses"""
@@ -643,7 +751,9 @@ class Level2(Level):
     def __init__(self):
         super().__init__()
         # Level2 specific initialization
+        self.code_blocks = []
         self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
+        super()._init_commands()
 
     def draw_popups(self, screen, mouse_pos, event):
         if self.current_popup == "shooting":
