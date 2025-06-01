@@ -6,6 +6,8 @@ import math
 import random
 import time
 
+from pyglet.libs.x11.xlib import XWidthOfScreen
+
 # Initialize pygame
 pygame.init()
 
@@ -58,6 +60,7 @@ for _ in range(200):
 twinkle_timer = 0
 twinkle_delay = 0.1
 BULLET_SPEED = 180
+dt = 0
 BULLET_RADIUS = 5
 TARGET_MAX_HEALTH = 200
 DAMAGE_PER_HIT = 25
@@ -130,17 +133,70 @@ class LevelSelector:
 
         return None
 
+bullet_pool = []
+bullet_options = []
 
 class Bullet:
-    __slots__ = ('x', 'y', 'dx', 'dy', 'radius', 'active')  # Faster attribute access
+    __slots__ = ('x', 'y', 'dx', 'dy', 'radius', 'active', 'shape')  # Faster attribute access
 
-    def __init__(self, x=None, y=None, dx=None, dy=None, radius=None, active=False):
+    def __init__(self, x=None, y=None, dx=None, dy=None, radius=None, active=False, shape="circle"):
         self.x = x
         self.y = y
         self.dx = dx
         self.dy = dy
         self.radius = radius
         self.active = active
+        self.shape = shape
+
+    def draw(self):
+        """Draw the bullet based on its shape type"""
+        if self.shape == "circle":
+            self.draw_circle()
+        elif self.shape == "square":
+            self.draw_square()
+        elif self.shape == "triangle":
+            self.draw_triangle()
+
+    def draw_circle(self):
+        """Draw circular bullet (original implementation)"""
+        bullet_surface = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(bullet_surface, ORANGE, (self.radius, self.radius), self.radius)
+        screen.blit(bullet_surface, (self.x - self.radius, self.y - self.radius))
+
+    def draw_square(self):
+        """Draw square bullet"""
+        size = self.radius * 2  # Square side length
+        bullet_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        pygame.draw.rect(
+            bullet_surface,
+            BLUE,  # Different color for squares
+            (0, 0, size, size),
+            border_radius=3  # Slightly rounded corners
+        )
+        screen.blit(bullet_surface, (self.x - self.radius, self.y - self.radius))
+
+    def draw_triangle(self):
+        """Draw triangular bullet"""
+        height = self.radius * 2
+        width = height * 0.866  # Equilateral triangle ratio
+
+        bullet_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+
+        # Triangle points (equilateral)
+        points = [
+            (width // 2, 0),  # Top point
+            (0, height),  # Bottom left
+            (width, height)  # Bottom right
+        ]
+
+        pygame.draw.polygon(
+            bullet_surface,
+            GREEN,  # Different color for triangles
+            points
+        )
+        screen.blit(bullet_surface, (self.x - width // 2, self.y - height // 2))
+
+
 
 class Command:
     def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None, condition_op=None, condition_val=None, editing_condition_part=None):
@@ -305,6 +361,102 @@ class Command:
             if cursor_box:
                 pygame.draw.rect(surface, CYAN, cursor_box, 2)
 
+class Player:
+    def __init__(self, x=0, y=0, width=0, height=0, angle=0):
+        self.x = x
+        self.y = y
+        self.angle = angle
+        self.width = width
+        self.height = height
+        self.bullets = []
+        self.max_bullets = 50
+        self.bullet_pool = []
+        self.current_bullet = None
+        self.damage_dealt = False
+        self.health = 200
+
+    def draw_player(self, surface):
+        # Player body
+        body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        pygame.draw.rect(surface, CYAN, body_rect)
+
+        # Gun (rotated based on angle)
+        gun_length = self.height * 1.5
+        gun_center = (body_rect.centerx, body_rect.centery)
+        end_x = gun_center[0] + gun_length * math.sin(math.radians(self.angle))
+        end_y = gun_center[1] - gun_length * math.cos(math.radians(self.angle))
+        pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
+
+    def _init_bullet(self, bullet, x, y, angle, width, height):
+        """Initialize bullet properties"""
+        angle_rad = math.radians(angle)
+        center_x = x + width // 2
+        center_y = y + height // 2
+        gun_length = height * 1.5
+
+        bullet.x = center_x + gun_length * math.sin(angle_rad)
+        bullet.y = center_y - gun_length * math.cos(angle_rad)
+        bullet.dx = math.sin(angle_rad)
+        bullet.dy = -math.cos(angle_rad)
+        bullet.radius = BULLET_RADIUS
+        bullet.active = True
+
+    def shoot_bullet(self, shape):
+        # current_time = pygame.time.get_ticks()
+        # print(current_time)
+        # if current_time - self.last_shot_time < self.shot_cooldown:
+        # return
+
+        # self.last_shot_time = current_time
+
+        # Reuse inactive bullets first
+        for bullet in self.bullet_pool:
+            if not bullet.active:
+                self._init_bullet(bullet, self.x, self.y, self.angle, self.width, self.height)
+                return
+
+        # Create new bullet if pool is empty
+        if len(self.bullets) < self.max_bullets:
+            bullet = Bullet(shape=shape)
+            self._init_bullet(bullet, self.x, self.y, self.angle, self.width, self.height)
+            self.bullets.append(bullet)
+
+    def update_bullets(self):
+        self.damage_dealt = False
+        #target = self.target  # Cache target reference
+
+        for bullet in self.bullets:
+            if not bullet.active:
+                continue
+
+            # Update position
+            bullet.x += bullet.dx * dt * BULLET_SPEED
+            bullet.y += bullet.dy * dt * BULLET_SPEED
+            #self.current_bullet = bullet
+
+            # Boundary check
+            if not (0 <= bullet.x < WIDTH and 0 <= bullet.y < HEIGHT):
+                bullet.active = False
+                continue
+
+            # Fast AABB collision check
+            if (self.x - BULLET_RADIUS <= bullet.x <= self.x + self.width + BULLET_RADIUS and
+                    self.y - BULLET_RADIUS <= bullet.y <= self.y + self.height + BULLET_RADIUS):
+                bullet.active = False
+                self.damage_dealt = True
+
+        # Remove inactive bullets (do this less frequently)
+        if random.random() < 0.1:  # Only clean up 10% of frames
+            self.bullets = [b for b in self.bullets if b.active]
+            self.bullet_pool = [b for b in self.bullets if not b.active]
+
+        if self.damage_dealt:
+            self.health = max(0, self.health - DAMAGE_PER_HIT)
+            if self.health <= 0:
+                #self.current_popup = "shooting"
+                pass
+
+
 
 class Level:
     def __init__(self):
@@ -321,11 +473,12 @@ class Level:
         self.main_code = []
         self.bullets = []
         self.bullet_pool = []  # Recycled bullets
+        self.bullet_options = []
         self.max_bullets = 100  # Adjust based on needs
         self.code_blocks = []
         self.target_health = TARGET_MAX_HEALTH
         self.last_shot_time = 0
-        self.shot_cooldown = 10
+        self.shot_cooldown = 50
         self.code_area = pygame.Rect(500, 100, 250, 400)
         self.commands_area = pygame.Rect(50, 5, 700, 50)
         self.run_button = Button(637, 550, 100, 40, "Run", GREEN, (0, 200, 0))
@@ -338,6 +491,11 @@ class Level:
         self.editing_loop_index = None
         self.bullet_surface = pygame.Surface((BULLET_RADIUS * 2, BULLET_RADIUS * 2), pygame.SRCALPHA)
         pygame.draw.circle(self.bullet_surface, ORANGE, (BULLET_RADIUS, BULLET_RADIUS), BULLET_RADIUS)
+        self.command_queue = []
+        self.current_command = None
+        self.command_start_time = 0
+        self.command_delay = 500  # ms between commands
+        self.player = Player(self.player_pos[0], self.player_pos[1], self.player_size, self.player_size, self.player_angle)
 
         # Common commands
         self.commands = {
@@ -351,6 +509,9 @@ class Level:
         self.var_dict = {
             "shape": "circle",
         }
+        self.current_var_dict = {
+            "shape": None
+        }
 
         self.op_dict = {
             ">": "Greater than",
@@ -363,6 +524,13 @@ class Level:
 
     def reset_level(self):
         self.__init__()
+        """self.bullet_options.append(
+            Circle(val_box.centerx, val_box.centery, int(0.15 * (val_box.right - val_box.left)), WHITE))
+        self.bullet_options.append(
+            Square(val_box.centerx - 10, val_box.centery - 10, int(0.3 * (val_box.right - val_box.left)), WHITE))
+        self.bullet_options.append(Triangle(
+            [(val_box.bottomleft[0] + 15, val_box.bottomleft[1] - 5), (val_box.midtop[0], val_box.midtop[1] + 5),
+             (val_box.bottomright[0] - 15, val_box.bottomright[1] - 5)], WHITE))"""
 
     def _init_commands(self):
         """Initialize the available command types"""
@@ -370,72 +538,30 @@ class Level:
         for cmd_type in basic_commands:
             self.code_blocks.append(Command(cmd_type))
 
-    def _init_bullet(self, bullet, dt):
-        """Initialize bullet properties"""
-        angle_rad = math.radians(self.player_angle)
-        center_x = self.player_pos[0] + self.player_size // 2
-        center_y = self.player_pos[1] + self.player_size // 2
-        gun_length = self.player_size * 1.5
+    def update(self, dt):
+        """Call this every frame from your main game loop"""
+        self.player.update_bullets()
+        self.update_commands(dt)
 
-        bullet.x = center_x + gun_length * math.sin(angle_rad)
-        bullet.y = center_y - gun_length * math.cos(angle_rad)
-        bullet.dx = math.sin(angle_rad)
-        bullet.dy = -math.cos(angle_rad)
-        bullet.radius = BULLET_RADIUS
-        bullet.active = True
-
-    def shoot_bullet(self, dt):
-        current_time = pygame.time.get_ticks()
-        if current_time - self.last_shot_time < self.shot_cooldown:
+    def update_commands(self, dt):
+        if not self.command_queue and not self.current_command:
             return
 
-        self.last_shot_time = current_time
+        current_time = pygame.time.get_ticks()
 
-        # Reuse inactive bullets first
-        for bullet in self.bullet_pool:
-            if not bullet.active:
-                self._init_bullet(bullet, dt)
-                return
+        # If no command is executing, start the next one
+        if self.current_command is None:
+            self.current_command = self.command_queue.pop(0)
+            self.command_start_time = current_time
+            self.execute_commands([self.current_command], screen, mouse_pos, event)  # Immediate first execution
 
-        # Create new bullet if pool is empty
-        if len(self.bullets) < self.max_bullets:
-            bullet = Bullet()
-            self._init_bullet(bullet, dt)
-            self.bullets.append(bullet)
+        # Check if command duration has elapsed
+        elif current_time - self.command_start_time >= self.command_delay:
+            self.current_command = None
 
-    # 3. Optimized update_bullets method
-    def update_bullets(self, dt):
-        damage_dealt = False
-        target = self.target  # Cache target reference
-
-        for bullet in self.bullets:
-            if not bullet.active:
-                continue
-
-            # Update position
-            bullet.x += bullet.dx * dt * BULLET_SPEED
-            bullet.y += bullet.dy * dt * BULLET_SPEED
-
-            # Boundary check
-            if not (0 <= bullet.x < WIDTH and 0 <= bullet.y < HEIGHT):
-                bullet.active = False
-                continue
-
-            # Fast AABB collision check
-            if (target.left - BULLET_RADIUS <= bullet.x <= target.right + BULLET_RADIUS and
-                    target.top - BULLET_RADIUS <= bullet.y <= target.bottom + BULLET_RADIUS):
-                bullet.active = False
-                damage_dealt = True
-
-        # Remove inactive bullets (do this less frequently)
-        if random.random() < 0.1:  # Only clean up 10% of frames
-            self.bullets = [b for b in self.bullets if b.active]
-            self.bullet_pool = [b for b in self.bullets if not b.active]
-
-        if damage_dealt:
-            self.target_health = max(0, self.target_health - DAMAGE_PER_HIT)
-            if self.target_health <= 0:
-                self.current_popup = "shooting"
+            # If queue is empty, check for level completion
+            #if not self.command_queue:
+                #self.check_level_completion()
 
     def check_perimeter_collision(self, point):
         """Check if a point touches the target's perimeter"""
@@ -489,10 +615,10 @@ class Level:
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def draw_bullets(self, surface):
-        if not self.bullets:
+        if not self.player.bullets:
             return
-        for bullet in self.bullets:
-            screen.blit(self.bullet_surface, (bullet.x - BULLET_RADIUS, bullet.y - BULLET_RADIUS))
+        for bullet in self.player.bullets:
+            bullet.draw()
 
     def draw_player(self, surface):
         # Player body
@@ -744,7 +870,10 @@ class Level:
 
         # Handle run button
         if self.run_button.is_clicked(mouse_pos, event):
-            self.execute_commands(self.main_code, screen, mouse_pos, event)
+            if not self.command_queue:
+                self.command_queue = self.main_code.copy()
+            self.current_command = None
+            #self.execute_commands(self.main_code, screen, mouse_pos, event)
 
         # Handle reset button
         if self.reset_button.is_clicked(mouse_pos, event):
@@ -763,51 +892,54 @@ class Level:
         )
 
     def execute_commands(self, cmd_list, screen, mouse_pos, event):
-        step_delay = 500
+        step_delay = 100
         for cmd in cmd_list:
             if cmd.is_loop():
                 for _ in range(cmd.iterations):
-                    self.execute_commands(cmd.nested_commands, screen, mouse_pos, event)
-            #elif cmd.is_conditional():
-                #if(cmd.condition_var)
-
+                    self.command_queue += cmd.nested_commands
+                    #self.execute_commands(cmd.nested_commands, screen, mouse_pos, event)
+                    self.update_commands(dt)
+            elif cmd.is_conditional():
+                if self.current_var_dict[cmd.condition_var] == cmd.condition_val:
+                    self.command_queue += cmd.nested_commands
+                    self.update_commands(dt)
             else:
                 if cmd.cmd_type == "move":
-                    dx = 40 * math.sin(math.radians(self.player_angle))
-                    dy = -100 * math.cos(math.radians(self.player_angle))
-                    self.player_pos[0] += dx
-                    self.player_pos[1] += dy
+                    dx = 40 * math.sin(math.radians(self.player.angle))
+                    dy = -100 * math.cos(math.radians(self.player.angle))
+                    self.player.x += dx
+                    self.player.y += dy
 
                     # Boundary checking
-                    self.player_pos[0] = max(self.battlefield.left,
-                                             min(self.player_pos[0], self.battlefield.right - self.player_size))
-                    self.player_pos[1] = max(self.battlefield.top,
-                                             min(self.player_pos[1], self.battlefield.bottom - self.player_size))
+                    self.player.x= max(self.battlefield.left,
+                                             min(self.player.x, self.battlefield.right - self.player.width))
+                    self.player.y = max(self.battlefield.top,
+                                             min(self.player.y, self.battlefield.bottom - self.player.height))
                 elif cmd.cmd_type == "turn_left":
-                    self.player_angle = (self.player_angle - 90) % 360
+                    self.player.angle = (self.player.angle - 90) % 360
 
                 elif cmd.cmd_type == "reverse":
                     dx = 40 * math.sin(math.radians(self.player_angle))
                     dy = -40 * math.cos(math.radians(self.player_angle))
-                    self.player_pos[0] -= dx
-                    self.player_pos[1] -= dy
+                    self.player.x -= dx
+                    self.player.y -= dy
 
                     # Boundary checking
-                    self.player_pos[0] = max(self.battlefield.left,
-                                             min(self.player_pos[0], self.battlefield.right - self.player_size))
-                    self.player_pos[1] = max(self.battlefield.top,
-                                             min(self.player_pos[1], self.battlefield.bottom - self.player_size))
+                    self.player.x = max(self.battlefield.left,
+                                             min(self.player.x, self.battlefield.right - self.player.width))
+                    self.player.y = max(self.battlefield.top,
+                                             min(self.player.y, self.battlefield.bottom - self.player.height))
 
                 elif cmd.cmd_type == "turn_right":
-                    self.player_angle = (self.player_angle + 90) % 360
+                    self.player.angle = (self.player.angle + 90) % 360
 
                 elif cmd.cmd_type == "shoot":
-                    self.shoot_bullet(dt)
+                    self.player.shoot_bullet(shape="circle")
 
                 pygame.time.wait(step_delay)
-                screen.fill(BLACK)
-                self.draw_all(screen, mouse_pos, event)
-                pygame.display.update()
+                #screen.fill(BLACK)
+                #self.draw_all(screen, mouse_pos, event)
+                #pygame.display.update()
 
 
     def add_to_main_code(self, command_type, mouse_pos):
@@ -883,7 +1015,7 @@ class Level:
         pygame.draw.rect(screen, GRAY, self.battlefield, border_radius=5)
         pygame.draw.rect(screen, WHITE, self.battlefield, 2, border_radius=5)
         pygame.draw.rect(screen, RED, self.target, border_radius=3)
-        self.draw_player(screen)
+        self.player.draw_player(screen)
         self.draw_code_blocks(screen)
         self.run_button.draw(screen)
         self.reset_button.draw(screen)
@@ -1054,6 +1186,7 @@ def update_starfield(dt):
 
 FPS = 60
 prev_time = time.time()
+x=0
 
 while running:
     mouse_pos = pygame.mouse.get_pos()
@@ -1114,6 +1247,7 @@ while running:
 
     elif current_state == STATE_LEVEL2:
         level2.draw_all(screen, mouse_pos, event)
+        level2.update(dt)
 
     elif current_state == STATE_LEVEL3:
         level3.draw_all(screen, mouse_pos, event)
@@ -1152,7 +1286,7 @@ while running:
         elif current_state == STATE_LEVEL2:
             #level2.draw_all()
             level2.handle_events(event, mouse_pos)
-            level2.update_bullets(dt)
+
             if level2.level_state == 0:
                 current_state = STATE_LEVELS
                 level2.current_popup = " "
