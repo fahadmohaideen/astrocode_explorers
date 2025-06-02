@@ -5,6 +5,7 @@ import sys
 import math
 import random
 import time
+import copy
 
 from pyglet.libs.x11.xlib import XWidthOfScreen
 
@@ -57,6 +58,7 @@ dt = 0
 BULLET_RADIUS = 5
 TARGET_MAX_HEALTH = 200
 DAMAGE_PER_HIT = 25
+PLAYER_AWARENESS_RANGE = 1500
 
 
 class Button:
@@ -125,8 +127,10 @@ class LevelSelector:
 
         return None
 
+
 bullet_pool = []
 bullet_options = []
+
 
 class Bullet:
     __slots__ = ('x', 'y', 'dx', 'dy', 'radius', 'active', 'shape')
@@ -184,9 +188,9 @@ class Bullet:
         screen.blit(bullet_surface, (self.x - width // 2, self.y - height // 2))
 
 
-
 class Command:
-    def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None, condition_op=None, condition_val=None, editing_condition_part=None):
+    def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None,
+                 condition_op=None, condition_val=None, editing_condition_part=None):
         self.cmd_type = cmd_type
         self.iterations = iterations
         self.conditions = conditions if conditions is not None else {}
@@ -196,6 +200,8 @@ class Command:
         self.condition_op = condition_op 
         self.condition_val = condition_val 
         self.editing_condition_part = editing_condition_part 
+        self.shoot_target_shape = Circle(0, 0, 8, WHITE) 
+        self.shoot_target_box_rect = None
 
         self.color = self._get_color()
         self.text = self._get_text()
@@ -264,6 +270,9 @@ class Command:
             #pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
             #pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
             #self._draw_loop_header(surface)
+        elif self.cmd_type == "shoot":
+            self._draw_shoot_command_content(surface)
+
         else:
             pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
             pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
@@ -310,6 +319,10 @@ class Command:
         pygame.draw.rect(surface, BLACK, val_box)
         pygame.draw.rect(surface, WHITE, val_box, 1)
         if hasattr(self, 'condition_val') and self.condition_val:
+            #val_text = code_font.render(str(self.condition_val), True, WHITE)
+            #surface.blit(val_text, (val_box.x + 5, val_box.y + 3))
+            self.condition_val.x = val_box.centerx
+            self.condition_val.y = val_box.centery
             self.condition_val.draw(surface)
 
         if hasattr(self, 'editing_condition_part'):
@@ -321,6 +334,25 @@ class Command:
 
             if cursor_box:
                 pygame.draw.rect(surface, CYAN, cursor_box, 2)
+
+    def _draw_shoot_command_content(self, surface):
+        shoot_text = code_font.render(self.text, True, WHITE)  
+        surface.blit(shoot_text, (self.rect.x + 5, self.rect.y + 5))
+
+        box_width = 30 
+        box_height = 20
+        box_x = self.rect.x + 5 + shoot_text.get_width() + 10
+        box_y = self.rect.y + 5
+
+        self.shoot_target_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+        pygame.draw.rect(surface, BLACK, self.shoot_target_box_rect)
+        pygame.draw.rect(surface, WHITE, self.shoot_target_box_rect, 1)
+
+        if self.shoot_target_shape:
+            self.shoot_target_shape.x = self.shoot_target_box_rect.centerx
+            self.shoot_target_shape.y = self.shoot_target_box_rect.centery
+            self.shoot_target_shape.draw(surface)
+
 
 class Player:
     def __init__(self, x=0, y=0, width=0, height=0, angle=0):
@@ -377,7 +409,7 @@ class Player:
             self._init_bullet(bullet, self.x, self.y, self.angle, self.width, self.height)
             self.bullets.append(bullet)
 
-    def update_bullets(self):
+    def update_bullets(self, target, level_id):
         self.damage_dealt = False
 
         for bullet in self.bullets:
@@ -390,8 +422,8 @@ class Player:
                 bullet.active = False
                 continue
 
-            if (self.x - BULLET_RADIUS <= bullet.x <= self.x + self.width + BULLET_RADIUS and
-                    self.y - BULLET_RADIUS <= bullet.y <= self.y + self.height + BULLET_RADIUS):
+            if (target.x - BULLET_RADIUS <= bullet.x <= target.x + target.width + BULLET_RADIUS and
+                    target.y - BULLET_RADIUS <= bullet.y <= target.y + target.height + BULLET_RADIUS):
                 bullet.active = False
                 self.damage_dealt = True
 
@@ -400,10 +432,42 @@ class Player:
             self.bullet_pool = [b for b in self.bullets if not b.active]
 
         if self.damage_dealt:
-            self.health = max(0, self.health - DAMAGE_PER_HIT)
-            if self.health <= 0:
-                pass
+            if level_id == 1 or level_id == 2:
+                target.health = max(0, target.health - DAMAGE_PER_HIT)
+                if target.health <= 0:
 
+                    pass
+
+    def draw_health_bar(self, surface):
+        bar_width = self.width
+        bar_height = 10
+        bar_x = self.x
+        bar_y = self.y - bar_height - 5
+
+        pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
+
+        health_width = (self.health / TARGET_MAX_HEALTH) * bar_width
+        pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
+
+        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
+
+
+class Alien(Player):
+    def __init__(self):
+        super().__init__()
+        self.x = 60
+        self.y = 170
+        self.angle = 90
+        self.width = 60
+        self.height = 60
+        self.shape_options = ["circle", "square", "triangle"]
+        self.prev_time = 0
+
+    def shoot_alien_bullets(self):
+        curr_time = pygame.time.get_ticks()
+        if curr_time - self.prev_time >= 1500:
+            self.shoot_bullet(self.shape_options[random.randint(0, 2)])
+            self.prev_time = curr_time
 
 
 class Level:
@@ -441,9 +505,11 @@ class Level:
         self.command_queue = []
         self.current_command = None
         self.command_start_time = 0
-        self.command_delay = 500
-        self.player = Player(self.player_pos[0], self.player_pos[1], self.player_size, self.player_size, self.player_angle)
-
+        self.command_delay = 50 
+        self.player = Player(self.player_pos[0], self.player_pos[1], self.player_size, self.player_size,
+                             self.player_angle)
+        self.alien = Alien()
+        self.current_approaching_alien_bullet_shape = None  
         self.commands = {
             "move": {"color": (0, 100, 200), "text": "Move Forward"},
             "turn_left": {"color": (200, 100, 0), "text": "Turn Left"},
@@ -455,8 +521,10 @@ class Level:
         self.var_dict = {
             "shape": "circle",
         }
-        self.current_var_dict = {
-            "shape": None
+        self.bullets_shape_match = {
+            "circle": "square",
+            "square": "triangle",
+            "triangle": "circle"
         }
 
         self.op_dict = {
@@ -467,6 +535,10 @@ class Level:
             "<=": "Less or equal",
             "!=": "Not equal"
         }
+
+        self.commands_match = False
+        self.level_id = 0
+        self.exit_to_levels = False
 
     def reset_level(self):
         self.__init__()
@@ -483,8 +555,65 @@ class Level:
         for cmd_type in basic_commands:
             self.code_blocks.append(Command(cmd_type))
 
+    def _check_bullet_bullet_collision(self, bullet1, bullet2):
+        rect1 = pygame.Rect(bullet1.x - bullet1.radius, bullet1.y - bullet1.radius,
+                            bullet1.radius * 2, bullet1.radius * 2)
+        rect2 = pygame.Rect(bullet2.x - bullet2.radius, bullet2.y - bullet2.radius,
+                            bullet2.radius * 2, bullet2.radius * 2)
+
+        return rect1.colliderect(rect2)
+
     def update(self, dt):
-        self.player.update_bullets()
+        self.player.update_bullets(self.alien, self.level_id)
+        if self.level_id == 3:
+            self.alien.update_bullets(self.player, self.level_id)
+        closest_dist = float('inf')
+
+        for bullet in self.alien.bullets:
+            if bullet.active:
+                bullet_center_x = bullet.x
+                bullet_center_y = bullet.y
+                player_center_x = self.player.x + self.player.width // 2
+                player_center_y = self.player.y + self.player.height // 2
+
+                dist = math.sqrt((bullet_center_x - player_center_x) ** 2 + (bullet_center_y - player_center_y) ** 2)
+
+                if dist < PLAYER_AWARENESS_RANGE and dist < closest_dist:
+                    closest_dist = dist
+                    self.current_approaching_alien_bullet_shape = bullet.shape
+                    self.var_dict["shape"] = self.current_approaching_alien_bullet_shape
+
+        player_bullets_after_b2b = []
+        alien_bullets_after_b2b = []
+
+        for p_bullet in self.player.bullets:
+            if not p_bullet.active:
+                self.player.bullet_pool.append(p_bullet) 
+                continue
+
+            hit_alien_bullet = False
+            for a_bullet in self.alien.bullets:
+                if not a_bullet.active:
+                    continue
+
+                if self._check_bullet_bullet_collision(p_bullet, a_bullet):
+                    p_bullet.active = False 
+                    a_bullet.active = False 
+                    self.player.bullet_pool.append(p_bullet) 
+                    self.alien.bullet_pool.append(a_bullet) 
+                    if self.bullets_shape_match[a_bullet.shape] == p_bullet.shape:
+                        self.alien.health= max(0, self.alien.health - DAMAGE_PER_HIT) 
+                    else:
+                        self.player.health = max(0, self.player.health - DAMAGE_PER_HIT)
+                    hit_alien_bullet = True 
+                    break 
+
+            if not hit_alien_bullet and p_bullet.active: 
+                player_bullets_after_b2b.append(p_bullet)
+
+        self.player.bullets = [b for b in player_bullets_after_b2b if b.active]
+        self.alien.bullets = [b for b in self.alien.bullets if b.active]
+
         self.update_commands(dt)
 
     def update_commands(self, dt):
@@ -543,10 +672,14 @@ class Level:
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def draw_bullets(self, surface):
-        if not self.player.bullets:
+        if not self.player.bullets and not self.alien.bullets:
             return
-        for bullet in self.player.bullets:
-            bullet.draw()
+        if self.player.bullets:
+            for bullet in self.player.bullets:
+                bullet.draw()
+        if self.alien.bullets and self.level_id == 3:
+            for bullet in self.alien.bullets:
+                bullet.draw()
 
     def draw_player(self, surface):
         body_rect = pygame.Rect(*self.player_pos, self.player_size, self.player_size)
@@ -699,12 +832,15 @@ class Level:
                             new_cmd = Command(
                                 cmd_type=self.dragging["type"],
                                 iterations=3 if self.dragging["type"] == "for_loop" else 1,
-                                nested_commands=[] if self.dragging["type"] == "for_loop" or "if_statement" or "else_statement" else None,
+                                nested_commands=[] if self.dragging[
+                                                          "type"] == "for_loop" or "if_statement" or "else_statement" else None,
                                 rect=pygame.Rect(
                                     cmd.rect.x + 20,
                                     cmd.rect.height + cmd.rect.y,
-                                    160 if self.dragging["type"] != "for_loop" or "if_statement" or "else_statement" else 190,
-                                    25 if self.dragging["type"] != "for_loop" or "if_statement" or "else_statement" else 40
+                                    160 if self.dragging[
+                                               "type"] != "for_loop" or "if_statement" or "else_statement" else 190,
+                                    25 if self.dragging[
+                                              "type"] != "for_loop" or "if_statement" or "else_statement" else 40
                                 )
                             )
 
@@ -749,7 +885,6 @@ class Level:
                 if len(self.editing_text) < 2:
                     self.editing_text += event.unicode
 
-
         if self.run_button.is_clicked(mouse_pos, event):
             if not self.command_queue:
                 self.command_queue = self.main_code.copy()
@@ -778,20 +913,21 @@ class Level:
                     #self.execute_commands(cmd.nested_commands, screen, mouse_pos, event)
                     self.update_commands(dt)
             elif cmd.is_conditional():
-                if self.current_var_dict[cmd.condition_var] == cmd.condition_val:
+                if self.var_dict[cmd.condition_var] == cmd.condition_val.shape:
                     self.command_queue += cmd.nested_commands
                     self.update_commands(dt)
+
             else:
                 if cmd.cmd_type == "move":
-                    dx = 40 * math.sin(math.radians(self.player.angle))
-                    dy = -100 * math.cos(math.radians(self.player.angle))
+                    dx = 50 * math.sin(math.radians(self.player.angle))
+                    dy = -50 * math.cos(math.radians(self.player.angle))
                     self.player.x += dx
                     self.player.y += dy
 
-                    self.player.x= max(self.battlefield.left,
-                                             min(self.player.x, self.battlefield.right - self.player.width))
+                    self.player.x = max(self.battlefield.left,
+                                        min(self.player.x, self.battlefield.right - self.player.width))
                     self.player.y = max(self.battlefield.top,
-                                             min(self.player.y, self.battlefield.bottom - self.player.height))
+                                        min(self.player.y, self.battlefield.bottom - self.player.height))
                 elif cmd.cmd_type == "turn_left":
                     self.player.angle = (self.player.angle - 90) % 360
 
@@ -802,21 +938,21 @@ class Level:
                     self.player.y -= dy
 
                     self.player.x = max(self.battlefield.left,
-                                             min(self.player.x, self.battlefield.right - self.player.width))
+                                        min(self.player.x, self.battlefield.right - self.player.width))
                     self.player.y = max(self.battlefield.top,
-                                             min(self.player.y, self.battlefield.bottom - self.player.height))
+                                        min(self.player.y, self.battlefield.bottom - self.player.height))
 
                 elif cmd.cmd_type == "turn_right":
                     self.player.angle = (self.player.angle + 90) % 360
 
                 elif cmd.cmd_type == "shoot":
-                    self.player.shoot_bullet(shape="circle")
+                    shape = cmd.shoot_target_shape.shape
+                    self.player.shoot_bullet(shape=shape)
 
                 pygame.time.wait(step_delay)
                 #screen.fill(BLACK)
                 #self.draw_all(screen, mouse_pos, event)
                 #pygame.display.update()
-
 
     def add_to_main_code(self, command_type, mouse_pos):
         pos_in_area = (mouse_pos[0] - self.code_area.x, mouse_pos[1] - self.code_area.y)
@@ -874,9 +1010,39 @@ class Level:
 
         self.main_code.insert(insert_index, new_cmd)
 
-
     def draw_popups(self, screen, mouse_pos, event):
-        pass
+        if self.alien.health <= 0:
+            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
+            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
+            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
+
+            text = title_font.render("Good Job!", True, GREEN)
+            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
+
+            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
+                                  "Continue", BLUE, CYAN)
+            continue_btn.draw(screen)
+            if continue_btn.is_clicked(mouse_pos, event):
+                self.current_popup = None
+                self.exit_to_levels = True
+                """self.commands.update({
+                    "turn_right": {"color": (20, 100, 0), "text": "Turn Right"},
+                    "reverse": {"color": (250, 100, 0), "text": "Reverse"}
+                })"""
+        if self.player.health <= 0:
+            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
+            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
+            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
+
+            text = title_font.render("The aliens killed you!", True, GREEN)
+            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
+
+            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
+                                  "Continue", BLUE, CYAN)
+            continue_btn.draw(screen)
+            if continue_btn.is_clicked(mouse_pos, event):
+                self.current_popup = None
+                self.exit_to_levels = True
 
     def draw_all(self, screen, mouse_pos, event):
         pygame.draw.rect(screen, GRAY, self.battlefield, border_radius=5)
@@ -886,59 +1052,26 @@ class Level:
         self.draw_code_blocks(screen)
         self.run_button.draw(screen)
         self.reset_button.draw(screen)
-        self.draw_health_bar(screen)
+        self.alien.draw_health_bar(screen)
+        if self.level_id == 3:
+            self.player.draw_health_bar(screen)
         self.draw_bullets(screen)
         self.draw_popups(screen, mouse_pos, event)
+
 
 class Level1(Level):
     def __init__(self):
         super().__init__()
-        """self.commands = {
-            "move": {"color": (0, 100, 200), "text": "Move Forward"},
-            "turn_left": {"color": (200, 100, 0), "text": "Turn Left"}
-        }"""
+        self.level_id = 1
 
-    def draw_popups(self, screen, mouse_pos, event):
-        if self.current_popup == "success":
-            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
-            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
-            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
-
-            text = title_font.render("Good Job!", True, GREEN)
-            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
-
-            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
-                                 "Continue", BLUE, CYAN)
-            continue_btn.draw(screen)
-            if continue_btn.is_clicked(mouse_pos, event):
-                self.current_popup = None
-                """self.commands.update({
-                    "turn_right": {"color": (20, 100, 0), "text": "Turn Right"},
-                    "reverse": {"color": (250, 100, 0), "text": "Reverse"}
-                })"""
 
 class Level2(Level):
     def __init__(self):
         super().__init__()
+        self.level_id = 2
         self.code_blocks = []
         self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
         super()._init_commands()
-
-    def draw_popups(self, screen, mouse_pos, event):
-        if self.current_popup == "shooting":
-            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
-            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
-            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
-
-            text = title_font.render("Now use loops!", True, GREEN)
-            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
-
-            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
-                                 "Continue", BLUE, CYAN)
-            continue_btn.draw(screen)
-            if continue_btn.is_clicked(mouse_pos, event):
-                self.current_popup = None
-                #self.commands["shoot"] = {"color": (250, 100, 0), "text": "Shoot"}
 
 
 class Circle:
@@ -947,34 +1080,54 @@ class Circle:
         self.y = y
         self.radius = radius
         self.color = color
+        self.shape = "circle"
 
     def draw(self, surface):
-        pygame.draw.circle(surface, self.color, (self.x, self.y), self.radius)
-
+        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
 
 class Square:
     def __init__(self, x, y, size, color):
-        self.rect = pygame.Rect(x, y, size, size)
+        self.x = x
+        self.y = y
+        self.size = size
         self.color = color
+        self.shape = "square"
 
     def draw(self, surface):
-        pygame.draw.rect(surface, self.color, self.rect)
-
+        top_left_x = self.x - self.size // 2
+        top_left_y = self.y - self.size // 2
+        pygame.draw.rect(surface, self.color, (top_left_x, top_left_y, self.size, self.size))
 
 class Triangle:
-    def __init__(self, points, color):
-        self.points = points
+    def __init__(self, x, y, size, color): 
+        self.x = x
+        self.y = y
+        self.size = size
         self.color = color
+        self.shape = "triangle"
+        self.points_relative = [
+            (0, -size / 2),
+            (-size / 2, size / 2),
+            (size / 2, size / 2)
+        ]
 
     def draw(self, surface):
-        pygame.draw.polygon(surface, self.color, self.points)
+        translated_points = [(self.x + p[0], self.y + p[1]) for p in self.points_relative]
+        pygame.draw.polygon(surface, self.color, translated_points)
+
 
 class Level3(Level):
     def __init__(self):
         super().__init__()
+        self.level_id = 3
         self.code_blocks = []
-        self.value_options = []  
-        self.current_value_index = 0
+        self.value_options = [
+            Circle(0, 0, 8, WHITE),  
+            Square(0, 0, 16, WHITE),  
+            Triangle(0, 0, 16, WHITE) 
+        ]
+        self.current_value_index = -1
+        self.shoot_index = -1
         self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
         self.commands["if_statement"] = {"color": FOR_LOOP_COLOR, "text": "if"}
         super()._init_commands()
@@ -984,31 +1137,52 @@ class Level3(Level):
             for cmd in self.main_code:
                 if cmd.is_conditional() and cmd.rect.collidepoint(mouse_pos):
                     var_box, op_box, val_box = self._get_condition_boxes(cmd)
-                    self.value_options.append(Circle(val_box.centerx, val_box.centery, int(0.15*(val_box.right - val_box.left)), WHITE))
-                    self.value_options.append(Square(val_box.centerx-10, val_box.centery-10, int(0.3 * (val_box.right - val_box.left)), WHITE))
-                    self.value_options.append(Triangle([(val_box.bottomleft[0]+15, val_box.bottomleft[1]-5), (val_box.midtop[0], val_box.midtop[1]+5), (val_box.bottomright[0]-15, val_box.bottomright[1]-5)], WHITE))
+                    """self.value_options.append(
+                        Circle(val_box.centerx, val_box.centery, int(0.15 * (val_box.right - val_box.left)), WHITE))
+                    self.value_options.append(
+                        Square(val_box.centerx - 10, val_box.centery - 10, int(0.3 * (val_box.right - val_box.left)),
+                               WHITE))
+                    self.value_options.append(Triangle([(val_box.bottomleft[0] + 15, val_box.bottomleft[1] - 5),
+                                                        (val_box.midtop[0], val_box.midtop[1] + 5),
+                                                        (val_box.bottomright[0] - 15, val_box.bottomright[1] - 5)],
+                                                       WHITE))"""
 
                     if val_box.collidepoint(mouse_pos):
                         self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
-                        cmd.condition_val = self.value_options[self.current_value_index]
+                        cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
                         return
+                elif cmd.cmd_type == "shoot" and cmd.rect.collidepoint(mouse_pos):
+                    if cmd.shoot_target_box_rect and cmd.shoot_target_box_rect.collidepoint(mouse_pos):
+                        self.shoot_index = (self.shoot_index + 1) % len(self.value_options)
+                        cmd.shoot_target_shape = copy.deepcopy(self.value_options[self.shoot_index])
+                        return
+
+            self._process_command_clicks_recursive(mouse_pos, self.main_code)
 
         super().handle_events(event, mouse_pos)
 
-    def draw_popups(self, screen, mouse_pos, event):
-        if self.current_popup == "shooting":
-            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
-            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
-            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
+    def _process_command_clicks_recursive(self, mouse_pos, commands_list):
+        for cmd in commands_list:
+            if cmd.rect and cmd.rect.collidepoint(mouse_pos):
+                if cmd.is_conditional():
+                    var_box, op_box, val_box = self._get_condition_boxes(cmd)
+                    if val_box.collidepoint(mouse_pos):
+                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
+                        cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
+                        return True
 
-            text = title_font.render("Now use loops!", True, GREEN)
-            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
+                elif cmd.cmd_type == "shoot":
+                    if cmd.shoot_target_box_rect and cmd.shoot_target_box_rect.collidepoint(mouse_pos):
+                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
+                        cmd.shoot_target_shape = copy.deepcopy(self.value_options[self.current_value_index])
+                        return True
 
-            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
-                                 "Continue", BLUE, CYAN)
-            continue_btn.draw(screen)
-            if continue_btn.is_clicked(mouse_pos, event):
-                self.current_popup = None
+            if cmd.is_loop() or cmd.is_conditional():
+                if self._process_command_clicks_recursive(mouse_pos, cmd.nested_commands):
+                    return True
+
+        return False
+
 
 start_button = Button(WIDTH // 2 - 100, HEIGHT // 2, 200, 50, "Start Game", BLUE, CYAN)
 quit_button = Button(WIDTH // 2 - 100, HEIGHT // 2 + 70, 200, 50, "Quit", BLUE, CYAN)
@@ -1044,9 +1218,10 @@ def update_starfield(dt):
             idx = random.randint(0, len(stars) - 1)
             stars[idx] = (stars[idx][0], stars[idx][1], random.randint(1, 3))
 
+
 FPS = 60
 prev_time = time.time()
-x=0
+x = 0
 
 while running:
     mouse_pos = pygame.mouse.get_pos()
@@ -1097,14 +1272,18 @@ while running:
 
     elif current_state == STATE_LEVEL1:
         level1.draw_all(screen, mouse_pos, event)
-
+        level1.alien.shoot_alien_bullets()
+        level1.update(dt)
 
     elif current_state == STATE_LEVEL2:
         level2.draw_all(screen, mouse_pos, event)
+        level2.alien.shoot_alien_bullets()
         level2.update(dt)
 
     elif current_state == STATE_LEVEL3:
         level3.draw_all(screen, mouse_pos, event)
+        level3.alien.shoot_alien_bullets()
+        level3.update(dt)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -1130,23 +1309,26 @@ while running:
 
         elif current_state == STATE_LEVEL1:
             level1.handle_events(event, mouse_pos)
-            level1.update_bullets(dt)
-            level1.update_bullets(dt)
-            if level1.level_state == 0:
+            #level1.update_bullets(dt)
+            if level1.exit_to_levels:
                 current_state = STATE_LEVELS
+                level1.exit_to_levels = False
+                #level1.success_popup = False
+                #level1.success_popup1 = False
 
         elif current_state == STATE_LEVEL2:
             level2.handle_events(event, mouse_pos)
 
-            if level2.level_state == 0:
+            if level2.exit_to_levels:
                 current_state = STATE_LEVELS
-                level2.current_popup = " "
+                level2.exit_to_levels = False
 
         elif current_state == STATE_LEVEL3:
             level3.handle_events(event, mouse_pos)
-            level3.update_bullets(dt)
-            if level3.level_state == 0:
+
+            if level3.exit_to_levels:
                 current_state = STATE_LEVELS
+                level3.exit_to_levels = False
 
     pygame.display.flip()
     clock.tick(FPS)
