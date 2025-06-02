@@ -1,4 +1,4 @@
-from distutils.util import execute
+
 
 import pygame
 import sys
@@ -6,8 +6,6 @@ import math
 import random
 import time
 import copy
-
-from pyglet.libs.x11.xlib import XWidthOfScreen
 
 
 pygame.init()
@@ -164,7 +162,7 @@ class Bullet:
             bullet_surface,
             BLUE,
             (0, 0, size, size),
-            border_radius=3
+            border_radius=0
         )
         screen.blit(bullet_surface, (self.x - self.radius, self.y - self.radius))
 
@@ -434,9 +432,7 @@ class Player:
         if self.damage_dealt:
             if level_id == 1 or level_id == 2:
                 target.health = max(0, target.health - DAMAGE_PER_HIT)
-                if target.health <= 0:
 
-                    pass
 
     def draw_health_bar(self, surface):
         bar_width = self.width
@@ -932,8 +928,8 @@ class Level:
                     self.player.angle = (self.player.angle - 90) % 360
 
                 elif cmd.cmd_type == "reverse":
-                    dx = 40 * math.sin(math.radians(self.player_angle))
-                    dy = -40 * math.cos(math.radians(self.player_angle))
+                    dx = 20 * math.sin(math.radians(self.player.angle))
+                    dy = -20 * math.cos(math.radians(self.player.angle))
                     self.player.x -= dx
                     self.player.y -= dy
 
