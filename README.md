@@ -49,6 +49,7 @@ As a player, I want a game with an engaging storyline which allows me to be the 
 As a player, I want a game that is easy to follow along and gradually increases the difficulty instead of being too easy or too difficult all the time.
 
 Features
+
 Core Game Loop & States
 [Current Progress]
 Game States: The game transitions between a STATE_START (main menu), STATE_LEVELS (level selection screen), and specific STATE_LEVEL1, STATE_LEVEL2, STATE_LEVEL3 for gameplay.
