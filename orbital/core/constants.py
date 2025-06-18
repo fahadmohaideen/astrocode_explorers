@@ -1,10 +1,10 @@
-# Game constants like screen size, colors, fonts
+
 import pygame
 
 pygame.init()
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1000, 800
 
-# Game states
+
 STATE_START = 0
 STATE_LEVELS = 1
 STATE_LEVEL1 = 2
@@ -12,7 +12,7 @@ STATE_LEVEL2 = 3
 STATE_LEVEL3 = 4
 STATE_LEVEL4 = 5
 
-# Colors
+
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 BLUE = (0, 100, 255)
@@ -26,19 +26,16 @@ RED = (255, 0, 0)
 ORANGE = (255, 165, 0)
 FOR_LOOP_COLOR = PURPLE
 
-# Game parameters
 BULLET_SPEED = 180
 BULLET_RADIUS = 5
 TARGET_MAX_HEALTH = 200
-PLAYER_MAX_HEALTH = 200 # Defined for player health bar
+PLAYER_MAX_HEALTH = 200
 DAMAGE_PER_HIT = 25
-PLAYER_AWARENESS_RANGE = 1500 # For alien bullet detection
-COMMAND_DELAY_MS = 50 # Delay between command executions in milliseconds
-
-# FPS
+PLAYER_AWARENESS_RANGE = 1500
+COMMAND_DELAY_MS = 50
 FPS = 60
-
-# Font sizes (actual font objects will be created in main.py)
+ORIGINAL_CMD_WIDTH = 210
+ORIGINAL_CMD_HEIGHT_LOOP = 100
 TITLE_FONT_SIZE = 72
 MENU_FONT_SIZE = 48
 SUBTITLE_FONT_SIZE = 36

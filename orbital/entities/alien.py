@@ -1,4 +1,3 @@
-# Alien logic and bullets
 import pygame
 import math
 import random
@@ -17,9 +16,10 @@ class Alien(Player):
         self.angle = 90
         self.width = 60
         self.height = 60
+        self.body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.shape_options = ["circle", "square", "triangle"]
-        self.prev_time = pygame.time.get_ticks()  # Initialize with current ticks for consistent timing
-        self.health = TARGET_MAX_HEALTH  # Alien uses TARGET_MAX_HEALTH
+        self.prev_time = pygame.time.get_ticks()
+        self.health = TARGET_MAX_HEALTH
 
     def draw_health_bar(self, surface):
         """Draws the alien's health bar."""
@@ -34,8 +34,7 @@ class Alien(Player):
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def shoot_alien_bullets(self):
-        """Alien fires a random shape bullet at intervals."""
         curr_time = pygame.time.get_ticks()
-        if curr_time - self.prev_time >= 1500:  # Original cooldown
+        if curr_time - self.prev_time >= 1500:
             self.shoot_bullet(self.shape_options[random.randint(0, 2)])
             self.prev_time = curr_time

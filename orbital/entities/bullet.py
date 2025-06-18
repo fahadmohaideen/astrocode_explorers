@@ -1,4 +1,3 @@
-# Bullet class and types
 import pygame
 import math
 import random
@@ -19,10 +18,9 @@ class Bullet:
         self.dy = dy
         self.radius = radius
         self.active = active
-        self.shape = shape  # "circle", "square", "triangle"
+        self.shape = shape
 
-    def draw(self, surface):  # Pass surface to draw
-        """Draw the bullet based on its shape type."""
+    def draw(self, surface):
         if self.shape == "circle":
             self._draw_circle(surface)
         elif self.shape == "square":
@@ -31,22 +29,19 @@ class Bullet:
             self._draw_triangle(surface)
 
     def _draw_circle(self, surface):
-        """Draws a circular bullet."""
         bullet_surface = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
         pygame.draw.circle(bullet_surface, ORANGE, (self.radius, self.radius), self.radius)
         surface.blit(bullet_surface, (self.x - self.radius, self.y - self.radius))
 
     def _draw_square(self, surface):
-        """Draws a square bullet."""
         size = self.radius * 2
         bullet_surface = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.rect(bullet_surface, BLUE, (0, 0, size, size), border_radius=3)
         surface.blit(bullet_surface, (self.x - self.radius, self.y - self.radius))
 
     def _draw_triangle(self, surface):
-        """Draws a triangular bullet."""
         height = self.radius * 2
-        width = height * 0.866  # Equilateral triangle ratio
+        width = height * 0.866
 
         bullet_surface = pygame.Surface((width, height), pygame.SRCALPHA)
         points = [

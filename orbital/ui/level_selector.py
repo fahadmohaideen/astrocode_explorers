@@ -1,6 +1,5 @@
-# Level selection logic and UI
 import pygame
-from core.constants import WHITE, BLUE, CYAN, GREEN, WIDTH, HEIGHT # Import necessary constants
+from core.constants import WHITE, BLUE, CYAN, GREEN, WIDTH, HEIGHT
 from ui.button import Button
 
 class LevelSelector:
@@ -9,7 +8,6 @@ class LevelSelector:
         self.menu_font = menu_font
         self.title_font = title_font
         self.back_button = Button(WIDTH // 2 - 100, HEIGHT - 80, 200, 50, "Back", BLUE, CYAN, self.menu_font)
-        # Create level buttons grid
         button_size = 60
         padding = 20
         start_x = WIDTH // 2 - (2 * button_size + padding)

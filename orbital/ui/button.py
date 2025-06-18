@@ -1,6 +1,5 @@
-# Button class for menu and levels
 import pygame
-from core.constants import WHITE, BLUE, CYAN, GREEN, WIDTH, HEIGHT # Import necessary constants
+from core.constants import WHITE, BLUE, CYAN, GREEN, WIDTH, HEIGHT
 
 class Button:
     def __init__(self, x, y, width, height, text, color, hover_color, menu_font):
