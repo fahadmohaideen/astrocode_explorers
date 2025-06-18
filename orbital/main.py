@@ -90,7 +90,12 @@ while running:
         level_selector.draw(screen)
 
     elif current_state == STATE_LEVEL1:
-        level1.draw_game(screen, mouse_pos, event)
+        if level1.game_view:
+            level1.draw_game(screen, mouse_pos, event)
+        if level1.code_editor:
+            level1.draw_code_blocks(screen)
+            level1.run_button.draw(screen)
+            level1.reset_button.draw(screen)
         #level1.alien.shoot_alien_bullets()
         try:
             next(level1.cmd_gen)
@@ -99,18 +104,29 @@ while running:
         level1.update(dt)
 
     elif current_state == STATE_LEVEL2:
-        level2.draw_all(screen, mouse_pos, event)
+        if level2.game_view:
+            level2.draw_game(screen, mouse_pos, event)
+        if level2.code_editor:
+            level2.draw_code_blocks(screen)
+            level2.run_button.draw(screen)
+            level2.reset_button.draw(screen)
         #level2.alien.shoot_alien_bullets()
         try:
             next(level2.cmd_gen)
         except (StopIteration, TypeError):
             pass
+
         level2.update(dt)
 
     elif current_state == STATE_LEVEL3:
-        level3.draw_all(screen, mouse_pos, event)
-        if -20 < (level3.alien.y + level3.alien.height / 2) - (level3.player.y + level3.player.height / 2) < 20:
-            level3.alien.shoot_alien_bullets()
+        if level3.game_view:
+            level3.draw_game(screen, mouse_pos, event)
+            if -20 < (level3.alien.y + level3.alien.height / 2) - (level3.player.y + level3.player.height / 2) < 20:
+                level3.alien.shoot_alien_bullets()
+        if level3.code_editor:
+            level3.draw_code_blocks(screen)
+            level3.run_button.draw(screen)
+            level3.reset_button.draw(screen)
         try:
             next(level3.cmd_gen)
         except (StopIteration, TypeError):
@@ -118,9 +134,15 @@ while running:
         level3.update(dt)
 
     elif current_state == STATE_LEVEL4:
-        level4.draw_all(screen, mouse_pos, event)
-        if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:
-            level4.alien.shoot_alien_bullets()
+        #level4.var_dict["key_press"] = None
+        if level4.game_view:
+            level4.draw_game(screen, mouse_pos, event)
+            if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:
+                level4.alien.shoot_alien_bullets()
+        if level4.code_editor:
+            level4.draw_code_blocks(screen)
+            level4.run_button.draw(screen)
+            level4.reset_button.draw(screen)
         try:
             next(level4.cmd_gen)
         except (StopIteration, TypeError):
@@ -153,6 +175,8 @@ while running:
                 level4.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
 
         elif current_state == STATE_LEVEL1:
+            if event.type == pygame.KEYDOWN:
+                level1.var_dict["key_press"] = pygame.key.name(event.key)
             level1.handle_events(event, mouse_pos)
             #level1.update_bullets(dt)
             if level1.exit_to_levels:
@@ -177,6 +201,11 @@ while running:
                 level3.exit_to_levels = False
 
         elif current_state == STATE_LEVEL4:
+            #level4.cmd_tree = level4.traverse_cmd(level4.main_code, 1)
+            if event.type == pygame.KEYDOWN:
+                level4.var_dict["key_press"] = pygame.key.name(event.key)
+            if event.type == pygame.KEYUP:
+                level4.var_dict["key_press"] = None
             level4.handle_events(event, mouse_pos)
 
             if level4.exit_to_levels:

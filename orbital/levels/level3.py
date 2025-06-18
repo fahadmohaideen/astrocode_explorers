@@ -27,18 +27,8 @@ class Level3(Level):
 
     def handle_events(self, event, mouse_pos):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            for cmd in self.main_code:
-                if cmd.is_conditional() and cmd.rect.collidepoint(mouse_pos):
+                """if cmd.is_conditional() and cmd.rect.collidepoint(mouse_pos):
                     var_box, op_box, val_box = self._get_condition_boxes(cmd)
-                    """self.value_options.append(
-                        Circle(val_box.centerx, val_box.centery, int(0.15 * (val_box.right - val_box.left)), WHITE))
-                    self.value_options.append(
-                        Square(val_box.centerx - 10, val_box.centery - 10, int(0.3 * (val_box.right - val_box.left)),
-                               WHITE))
-                    self.value_options.append(Triangle([(val_box.bottomleft[0] + 15, val_box.bottomleft[1] - 5),
-                                                        (val_box.midtop[0], val_box.midtop[1] + 5),
-                                                        (val_box.bottomright[0] - 15, val_box.bottomright[1] - 5)],
-                                                       WHITE))"""
 
                     if val_box.collidepoint(mouse_pos):
                         self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
@@ -48,16 +38,28 @@ class Level3(Level):
                     if cmd.shoot_target_box_rect and cmd.shoot_target_box_rect.collidepoint(mouse_pos):
                         self.shoot_index = (self.shoot_index + 1) % len(self.value_options)
                         cmd.shoot_target_shape = copy.deepcopy(self.value_options[self.shoot_index])
-                        return
-            self._process_command_clicks_recursive(mouse_pos, self.main_code)
+                        return """
+
+                self._process_command_clicks_recursive(mouse_pos, self.main_code)
+
+
         super().handle_events(event, mouse_pos)
 
     def _process_command_clicks_recursive(self, mouse_pos, commands_list):
         for cmd in commands_list:
             if cmd.rect and cmd.rect.collidepoint(mouse_pos):
                 if cmd.is_conditional():
-                    var_box, op_box, val_box = self._get_condition_boxes(cmd)
-                    if val_box.collidepoint(mouse_pos):
+                    var_box, op_box, val_box = cmd.var_box, cmd.op_box, cmd.val_box
+
+                    if var_box.collidepoint(mouse_pos):
+                        current_var = getattr(cmd, 'condition_var', None)
+                        cmd.condition_var = self._cycle_value(current_var, self.var_dict)
+
+                    elif op_box.collidepoint(mouse_pos):
+                        current_op = getattr(cmd, 'condition_op', None)
+                        cmd.condition_op = self._cycle_value(current_op, self.op_dict)
+
+                    elif val_box.collidepoint(mouse_pos):
                         self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
                         cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
                         return True
@@ -67,6 +69,14 @@ class Level3(Level):
                         self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
                         cmd.shoot_target_shape = copy.deepcopy(self.value_options[self.current_value_index])
                         return True
+
+                elif cmd.is_loop():
+                    if cmd.iter_box.collidepoint(mouse_pos):
+                        self.editing_loop_cmd = cmd
+                        cmd.editing_text = ""
+                        return True
+                    self.editing_loop_cmd = None
+
 
             if cmd.is_loop() or cmd.is_conditional() or cmd.cmd_type == "while_loop":
                 if self._process_command_clicks_recursive(mouse_pos, cmd.nested_commands):
