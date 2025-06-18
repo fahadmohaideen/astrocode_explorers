@@ -17,6 +17,7 @@ class Alien(Player):
         self.angle = 90
         self.width = 60
         self.height = 60
+        self.body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.shape_options = ["circle", "square", "triangle"]
         self.prev_time = pygame.time.get_ticks()  # Initialize with current ticks for consistent timing
         self.health = TARGET_MAX_HEALTH  # Alien uses TARGET_MAX_HEALTH

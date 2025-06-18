@@ -2,7 +2,7 @@
 import pygame
 
 pygame.init()
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1000, 800
 
 # Game states
 STATE_START = 0
@@ -37,6 +37,8 @@ COMMAND_DELAY_MS = 50 # Delay between command executions in milliseconds
 
 # FPS
 FPS = 60
+ORIGINAL_CMD_WIDTH = 210
+ORIGINAL_CMD_HEIGHT_LOOP = 100
 
 # Font sizes (actual font objects will be created in main.py)
 TITLE_FONT_SIZE = 72

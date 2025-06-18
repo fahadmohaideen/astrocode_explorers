@@ -16,6 +16,7 @@ class Player:
         self.angle = angle  # Angle in degrees (0 = up, 90 = right, etc.)
         self.width = width
         self.height = height
+        self.body_rect = None
         self.bullets = []  # List of active Bullet objects
         self.max_bullets = 50
         self.bullet_pool = []  # List of inactive Bullet objects for recycling
@@ -25,12 +26,13 @@ class Player:
 
     def draw_player(self, surface):
         """Draws the player (robot) on the given surface."""
-        body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        pygame.draw.rect(surface, CYAN, body_rect)
+        #body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        pygame.draw.rect(surface, CYAN, self.body_rect)
 
         # Gun (rotated based on angle)
         gun_length = self.height * 1.5
-        gun_center = (body_rect.centerx, body_rect.centery)
+        gun_center = (self.body_rect.centerx, self.body_rect.centery)
         end_x = gun_center[0] + gun_length * math.sin(math.radians(self.angle))
         end_y = gun_center[1] - gun_length * math.cos(math.radians(self.angle))
         pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
