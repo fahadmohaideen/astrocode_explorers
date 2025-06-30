@@ -28,6 +28,10 @@ class FreeWorld:
         self._setup_command_system()
         self._setup_phases()
         self._load_assets()
+        self.exit_button = Button(
+            WIDTH - 70, HEIGHT - 50, 60, 40,
+            "X", RED, (255, 100, 100), fonts['menu_font']
+        )
 
     def _setup_ui(self):
         """Initialize UI elements and constants"""
@@ -288,6 +292,8 @@ class FreeWorld:
         self.run_button.draw(surface)
         self.reset_button.draw(surface)
         self.clear_button.draw(surface)
+        # Draw exit button
+        self.exit_button.draw(surface)
 
     def draw_command_column(self, surface):
         """Draw available commands column"""
@@ -385,10 +391,16 @@ class FreeWorld:
             if self.panel_visible and event.button == 1:
                 self.handle_command_drop(mouse_pos)
                 self.dragging_command = None
+                # Check exit button click
+                if self.exit_button.rect.collidepoint(mouse_pos):
+                    self.panel_visible = False
 
         elif event.type == pygame.MOUSEBUTTONDOWN and self.panel_visible:
             if event.button == 1:
                 self.handle_command_pickup(mouse_pos)
+                # Alternative exit button detection (optional)
+                if self.exit_button.rect.collidepoint(mouse_pos):
+                    self.panel_visible = False
 
         elif event.type == pygame.MOUSEMOTION and self.dragging_command:
             self.dragging_command["pos"] = pygame.Vector2(mouse_pos) - self.drag_offset
@@ -405,7 +417,7 @@ class FreeWorld:
             if self.clear_button.is_clicked(mouse_pos, event):
                 self.command_queue = []
                 self.conditional_blocks = []
-
+                
     def handle_command_pickup(self, mouse_pos):
         """Handle picking up commands from panel with proper phase support"""
         # Calculate the y-position where commands start
@@ -543,20 +555,22 @@ class FreeWorld:
     def check_condition(self, condition):
         """Check if a condition is met"""
         if condition == "If Alien Near":
-            # Check if any alien is within 200 pixels
+            # Check if any alien is within 200 pixels and visible on screen
             for alien in self.aliens:
                 alien_screen_pos = alien["pos"] - self.camera_offset
-                if (-100 < alien_screen_pos.x < WIDTH + 100 and
-                        -100 < alien_screen_pos.y < HEIGHT + 100):
-                    if (alien["pos"] - self.hero_pos).length() < 200:
+                # Check if alien is actually visible on screen
+                if (0 <= alien_screen_pos.x <= WIDTH and
+                        0 <= alien_screen_pos.y <= HEIGHT):
+                    distance = (alien["pos"] - self.hero_pos).length()
+                    if distance < 200:  # 200 pixels range
                         return True
             return False
         elif condition == "If Alien TypeA":
             # Check if any visible alien is TypeA
             for alien in self.aliens:
                 alien_screen_pos = alien["pos"] - self.camera_offset
-                if (-100 < alien_screen_pos.x < WIDTH + 100 and
-                        -100 < alien_screen_pos.y < HEIGHT + 100):
+                if (0 <= alien_screen_pos.x <= WIDTH and
+                        0 <= alien_screen_pos.y <= HEIGHT):
                     if alien["type"] == "TypeA":
                         return True
             return False
@@ -564,8 +578,8 @@ class FreeWorld:
             # Check if any visible alien is TypeB
             for alien in self.aliens:
                 alien_screen_pos = alien["pos"] - self.camera_offset
-                if (-100 < alien_screen_pos.x < WIDTH + 100 and
-                        -100 < alien_screen_pos.y < HEIGHT + 100):
+                if (0 <= alien_screen_pos.x <= WIDTH and
+                        0 <= alien_screen_pos.y <= HEIGHT):
                     if alien["type"] == "TypeB":
                         return True
             return False
@@ -573,8 +587,8 @@ class FreeWorld:
             # Check if any visible alien is TypeC
             for alien in self.aliens:
                 alien_screen_pos = alien["pos"] - self.camera_offset
-                if (-100 < alien_screen_pos.x < WIDTH + 100 and
-                        -100 < alien_screen_pos.y < HEIGHT + 100):
+                if (0 <= alien_screen_pos.x <= WIDTH and
+                        0 <= alien_screen_pos.y <= HEIGHT):
                     if alien["type"] == "TypeC":
                         return True
             return False
@@ -586,6 +600,20 @@ class FreeWorld:
             return
 
         cmd = self.command_queue[self.current_command_index]
+
+        # First check if we're inside a conditional block that should be skipped
+        skip_to_end_if = None
+        for condition, start, end in self.conditional_blocks:
+            if start < self.current_command_index < end:
+                # We're inside a conditional block - check if it should be skipped
+                if self.current_command_index == start + 1:  # First command after If
+                    if not self.check_condition(condition):
+                        skip_to_end_if = end
+                        break
+
+        if skip_to_end_if is not None:
+            self.current_command_index = skip_to_end_if + 1
+            return
 
         # Handle loop starts
         if cmd.startswith("For "):
@@ -615,22 +643,15 @@ class FreeWorld:
             self.current_command_index += 1
             return
 
-        # Handle conditional blocks
-        for condition, start, end in self.conditional_blocks:
-            if self.current_command_index == start:  # This is an If command
-                condition_met = self.check_condition(condition)
-                if not condition_met:
-                    # Skip to End If
-                    self.current_command_index = end + 1
-                    return
-                else:
-                    # Continue with next command
-                    self.current_command_index += 1
-                    return
-            elif self.current_command_index == end:  # This is End If
-                # Just continue to next command
-                self.current_command_index += 1
-                return
+        # Handle If commands (just continue to next command)
+        if cmd.startswith("If "):
+            self.current_command_index += 1
+            return
+
+        # Handle End If commands (just continue to next command)
+        if cmd == "End If":
+            self.current_command_index += 1
+            return
 
         # Execute normal commands
         if cmd == "Move Up":
@@ -866,6 +887,8 @@ class FreeWorld:
 
     def update(self, dt, keys):
         """Update all game state"""
+        mouse_pos = pygame.mouse.get_pos()
+        self.exit_button.check_hover(mouse_pos)
         self.update_camera()
         self.update_bullet(dt)
         self.update_particles(dt)
@@ -1049,6 +1072,7 @@ class FreeWorld:
         pygame.draw.rect(screen, (100, 100, 100), btn_rect, border_radius=4)
         text = self.font.render(self.dragging_command["command"], True, (255, 255, 255))
         screen.blit(text, (btn_rect.x + 10, btn_rect.y + 10))
+
 
 
 
