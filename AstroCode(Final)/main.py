@@ -1,15 +1,16 @@
 # Entry point for AstroCode
 import pygame
 import sys
-import math  # For pulse effect in start screen
+import time
+import math # For pulse effect in start screen
 from levels.free_world import FreeWorld
+free_world = FreeWorld()
 
 # Import modules
 from core.constants import (
-    WIDTH, HEIGHT, BLACK, CYAN, PURPLE, WHITE,
-    STATE_START, STATE_LEVELS, STATE_LEVEL1, STATE_LEVEL2,
-    STATE_LEVEL3, STATE_LEVEL4, STATE_FREEROAM, FPS,
-    fonts, screen
+    WIDTH, HEIGHT, BLACK, CYAN, PURPLE, WHITE, DARK_GRAY,
+    STATE_START, STATE_LEVELS, STATE_LEVEL1, STATE_LEVEL2, STATE_LEVEL3, STATE_LEVEL4, STATE_FREEROAM, FPS,
+    TITLE_FONT_SIZE, MENU_FONT_SIZE, SUBTITLE_FONT_SIZE, CODE_FONT_SIZE, fonts, screen
 )
 from core.utils import draw_starfield, update_starfield
 from ui.button import Button
@@ -18,147 +19,70 @@ from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level3 import Level3
 from levels.level4 import Level4
+from levels.base_level import Level
 
+# Initialize pygame
+pygame.init()
+pygame.font.init() # Initialize font module
 
-class Game:
-    def __init__(self):
-        pygame.init()
-        pygame.font.init()
-        pygame.display.set_caption("AstroCode")
+# Screen setup
+pygame.display.set_caption("AstroCode")
 
-        self.current_state = STATE_START
-        self.clock = pygame.time.Clock()
-        self.running = True
+# Font initialization (global font objects to be passed to classes)
 
-        # Initialize game components
-        self._init_ui()
-        self._init_levels()
+# Global game state variable
+current_state = STATE_START
 
-    def _init_ui(self):
-        """Initialize UI elements"""
-        self.start_button = Button(
-            WIDTH // 2 - 100, HEIGHT // 2 - 50, 200, 50,
-            "Start Game", (0, 100, 255), (0, 200, 255), fonts['menu_font']
-        )
-        self.level_select_button = Button(
-            WIDTH // 2 - 100, HEIGHT // 2 + 10, 200, 50,
-            "Select Level", (0, 100, 255), (0, 200, 255), fonts['menu_font']
-        )
-        self.quit_button = Button(
-            WIDTH // 2 - 100, HEIGHT // 2 + 70, 200, 50,
-            "Quit", (0, 100, 255), (0, 200, 255), fonts['menu_font']
-        )
+# UI Elements for Start Screen
+start_button = Button(WIDTH // 2 - 100, HEIGHT // 2 - 50, 200, 50, "Start Game", (0, 100, 255), (0, 200, 255), fonts['menu_font'])
+level_select_button = Button(WIDTH // 2 - 100, HEIGHT // 2 + 10, 200, 50, "Select Level", (0, 100, 255), (0, 200, 255), fonts['menu_font'])
+quit_button = Button(WIDTH // 2 - 100, HEIGHT // 2 + 70, 200, 50, "Quit", (0, 100, 255), (0, 200, 255), fonts['menu_font'])
 
-        self.level_selector = LevelSelector(fonts['menu_font'], fonts['title_font'])
+# Level Selector (needs font objects)
+level_selector = LevelSelector(fonts['menu_font'], fonts['title_font'])
 
-    def _init_levels(self):
-        """Initialize level instances"""
-        self.free_world = FreeWorld()
-        self.level1 = Level1(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        self.level2 = Level2(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        self.level3 = Level3(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        self.level4 = Level4(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+# Level Instances (needs font objects)
+level1 = Level1(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+level2 = Level2(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+level3 = Level3(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+level4 = Level4(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
 
-    def handle_events(self):
-        """Handle all pygame events"""
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-                return
+# Game loop variables
+clock = pygame.time.Clock()
+running = True
+prev_time = time.time()
+x = 0
 
-            mouse_pos = pygame.mouse.get_pos()
+while running:
+    mouse_pos = pygame.mouse.get_pos()
+    current_time = time.time()
+    dt = (current_time - prev_time)  # Convert to seconds
+    #print(dt)
+    prev_time = current_time
 
-            if self.current_state == STATE_START:
-                if self.start_button.is_clicked(mouse_pos, event):
-                    self.current_state = STATE_LEVELS
-                if self.quit_button.is_clicked(mouse_pos, event):
-                    self.running = False
+    #update_starfield(dt)
 
-            elif self.current_state == STATE_LEVELS:
-                self._handle_level_selection(event, mouse_pos)
+    if current_state == STATE_START:
+        start_button.check_hover(mouse_pos)
+        quit_button.check_hover(mouse_pos)
+    elif current_state == STATE_LEVELS:
+        for btn in level_selector.levels:
+            btn.check_hover(mouse_pos)
+        level_selector.back_button.check_hover(mouse_pos)
+    elif current_state == STATE_LEVEL1:
+        level1.run_button.check_hover(mouse_pos)
+        level1.reset_button.check_hover(mouse_pos)
+    elif current_state == STATE_FREEROAM:
+        free_world.run_button.check_hover(mouse_pos)
+        free_world.reset_button.check_hover(mouse_pos)
 
-            elif self.current_state == STATE_LEVEL1:
-                self._handle_level_events(self.level1, event, mouse_pos)
+    # Draw
+    screen.fill(BLACK)
+    draw_starfield(screen)
 
-            elif self.current_state == STATE_LEVEL2:
-                self._handle_level_events(self.level2, event, mouse_pos)
-
-            elif self.current_state == STATE_LEVEL3:
-                self._handle_level_events(self.level3, event, mouse_pos)
-
-            elif self.current_state == STATE_LEVEL4:
-                self._handle_level_events(self.level4, event, mouse_pos)
-
-            elif self.current_state == STATE_FREEROAM:
-                self.free_world.handle_event(event, mouse_pos)
-                if self.free_world.exit_to_levels:
-                    self.current_state = STATE_LEVELS
-                    self.free_world.exit_to_levels = False
-
-    def _handle_level_selection(self, event, mouse_pos):
-        """Handle level selection logic"""
-        selected_level = self.level_selector.handle_click(mouse_pos, event)
-        if selected_level == 1:
-            self.current_state = STATE_LEVEL1
-            self.level1.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        elif selected_level == 2:
-            self.current_state = STATE_LEVEL2
-            self.level2.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        elif selected_level == 3:
-            self.current_state = STATE_LEVEL3
-            self.level3.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        elif selected_level == 4:
-            self.current_state = STATE_LEVEL4
-            self.level4.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
-        elif selected_level == "free_roam":
-            self.current_state = STATE_FREEROAM
-
-    def _handle_level_events(self, level, event, mouse_pos):
-        """Handle events for a specific level"""
-        level.handle_events(event, mouse_pos)
-        if level.exit_to_levels:
-            self.current_state = STATE_LEVELS
-            level.exit_to_levels = False
-
-    def update(self, dt):
-        """Update game state"""
-        if self.current_state == STATE_FREEROAM:
-            keys = pygame.key.get_pressed()
-            self.free_world.update(dt, keys)
-
-        # Update starfield for start screen
-        if self.current_state == STATE_START:
-            update_starfield(dt)
-
-    def draw(self):
-        """Draw everything to the screen"""
-        screen.fill(BLACK)
-        draw_starfield(screen)
-
-        if self.current_state == STATE_START:
-            self._draw_start_screen()
-        elif self.current_state == STATE_LEVELS:
-            self.level_selector.draw(screen)
-        elif self.current_state == STATE_LEVEL1:
-            self.level1.draw_game(screen, pygame.mouse.get_pos(), None)
-            self.level1.update(self.clock.get_time() / 1000)
-        elif self.current_state == STATE_LEVEL2:
-            self.level2.draw_all(screen, pygame.mouse.get_pos(), None)
-            self.level2.update(self.clock.get_time() / 1000)
-        elif self.current_state == STATE_LEVEL3:
-            self.level3.draw_all(screen, pygame.mouse.get_pos(), None)
-            self.level3.update(self.clock.get_time() / 1000)
-        elif self.current_state == STATE_LEVEL4:
-            self.level4.draw_all(screen, pygame.mouse.get_pos(), None)
-            self.level4.update(self.clock.get_time() / 1000)
-        elif self.current_state == STATE_FREEROAM:
-            self.free_world.draw(screen)
-
-        pygame.display.flip()
-
-    def _draw_start_screen(self):
-        """Draw the start screen elements"""
-        # Draw title with pulse effect
+    if current_state == STATE_START:
+        update_starfield(dt)
+        # Draw title
         title_text = fonts['title_font'].render("ASTROCODE", True, CYAN)
         title_shadow = fonts['title_font'].render("ASTROCODE", True, PURPLE)
         pulse = math.sin(pygame.time.get_ticks() * 0.001) * 0.1 + 1
@@ -175,26 +99,137 @@ class Game:
         screen.blit(subtitle_text, subtitle_rect)
 
         # Draw buttons
-        self.start_button.draw(screen)
-        self.quit_button.draw(screen)
+        start_button.draw(screen)
+        quit_button.draw(screen)
 
         # Version info
         version_text = fonts['subtitle_font'].render("v1.0", True, (100, 100, 100))
         screen.blit(version_text, (WIDTH - 80, HEIGHT - 40))
 
-    def run(self):
-        """Main game loop"""
-        while self.running:
-            dt = self.clock.tick(FPS) / 1000  # Get delta time in seconds
+    elif current_state == STATE_LEVELS:
+        level_selector.draw(screen)
 
-            self.handle_events()
-            self.update(dt)
-            self.draw()
+    elif current_state == STATE_LEVEL1:
+        level1.draw_game(screen, mouse_pos, event)
+        #level1.alien.shoot_alien_bullets()
+        try:
+            next(level1.cmd_gen)
+        except (StopIteration, TypeError):
+            pass
+        level1.update(dt)
 
-        pygame.quit()
-        sys.exit()
+    elif current_state == STATE_LEVEL2:
+        level2.draw_all(screen, mouse_pos, event)
+        #level2.alien.shoot_alien_bullets()
+        try:
+            next(level2.cmd_gen)
+        except (StopIteration, TypeError):
+            pass
+        level2.update(dt)
+
+    elif current_state == STATE_LEVEL3:
+        level3.draw_all(screen, mouse_pos, event)
+        if -20 < (level3.alien.y + level3.alien.height / 2) - (level3.player.y + level3.player.height / 2) < 20:
+            level3.alien.shoot_alien_bullets()
+        try:
+            next(level3.cmd_gen)
+        except (StopIteration, TypeError):
+            pass
+        level3.update(dt)
+
+    elif current_state == STATE_LEVEL4:
+        level4.draw_all(screen, mouse_pos, event)
+        if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:
+            level4.alien.shoot_alien_bullets()
+        try:
+            next(level4.cmd_gen)
+        except (StopIteration, TypeError):
+            pass
+        level4.update(dt)
+    # Inside the while running loop
 
 
-if __name__ == "__main__":
-    game = Game()
-    game.run()
+    # Event handling
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        if current_state == STATE_FREEROAM:
+            free_world.handle_event(event, mouse_pos)
+
+        if current_state == STATE_START:
+            if start_button.is_clicked(mouse_pos, event):
+                current_state = STATE_LEVELS
+            if quit_button.is_clicked(mouse_pos, event):
+                running = False
+
+        elif current_state == STATE_LEVELS:
+            selected_level = level_selector.handle_click(mouse_pos, event)
+            if selected_level == 1:
+                current_state = STATE_LEVEL1
+                level1.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+            elif selected_level == 2:
+                current_state = STATE_LEVEL2
+                level2.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+            elif selected_level == 3:
+                current_state = STATE_LEVEL3
+                level3.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+            elif selected_level == 4:
+                current_state = STATE_LEVEL4
+                level4.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+            elif selected_level == "free_roam":
+                current_state = STATE_FREEROAM
+
+        elif current_state == STATE_LEVEL1:
+            level1.handle_events(event, mouse_pos)
+            #level1.update_bullets(dt)
+            if level1.exit_to_levels:
+                current_state = STATE_LEVELS
+                level1.exit_to_levels = False
+                #level1.success_popup = False
+                #level1.success_popup1 = False
+
+        elif current_state == STATE_LEVEL2:
+            #level2.draw_all()
+            level2.handle_events(event, mouse_pos)
+
+            if level2.exit_to_levels:
+                current_state = STATE_LEVELS
+                level2.exit_to_levels = False
+
+        elif current_state == STATE_LEVEL3:
+            level3.handle_events(event, mouse_pos)
+
+            if level3.exit_to_levels:
+                current_state = STATE_LEVELS
+                level3.exit_to_levels = False
+
+        elif current_state == STATE_LEVEL4:
+            level4.handle_events(event, mouse_pos)
+
+            if level4.exit_to_levels:
+                current_state = STATE_LEVELS
+                level4.exit_to_levels = False
+
+        elif current_state == STATE_FREEROAM:
+            free_world.handle_event(event,  pygame.mouse.get_pos())
+
+            if free_world.exit_to_levels:
+                current_state = STATE_LEVELS
+                free_world.exit_to_levels = False
+
+    if current_state == STATE_FREEROAM:
+        keys = pygame.key.get_pressed()
+        dt = clock.tick(60) / 1000
+        free_world.update(dt, keys)
+        free_world.draw(screen)
+
+    # Update
+
+    pygame.display.flip()
+    clock.tick(FPS)
+
+pygame.quit()
+sys.exit()
