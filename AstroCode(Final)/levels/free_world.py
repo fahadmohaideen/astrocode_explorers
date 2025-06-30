@@ -18,10 +18,8 @@ ALIEN_COLORS = {
     "TypeC": (100, 100, 255)
 }
 
-
 class FreeWorld:
     def __init__(self):
-        # Initialize game state
         self._setup_ui()
         self._setup_game_state()
         self._setup_camera()
@@ -99,14 +97,12 @@ class FreeWorld:
         """Load all game assets"""
         ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 
-        # Load tile and hero images
         raw_tile = pygame.image.load(os.path.join(ASSETS_PATH, "tile.png"))
         self.tile_img = pygame.transform.scale(raw_tile, (self.TILE_SIZE, self.TILE_SIZE))
         self.hero_img = pygame.image.load(os.path.join(ASSETS_PATH, "hero.png"))
         self.hero_img = pygame.transform.scale(self.hero_img, (55, 55))
         self.hero_rect = self.hero_img.get_rect(center=self.hero_pos)
 
-        # Load animation frames
         self.walk_frames = [
             pygame.image.load(os.path.join(ASSETS_PATH, "walk1.png")),
             pygame.image.load(os.path.join(ASSETS_PATH, "walk2.png")),
@@ -116,7 +112,6 @@ class FreeWorld:
         self.frame_timer = 0
         self.frame_delay = 0.1
 
-        # Load tutorial target
         self.tutorial_target = pygame.Rect(WIDTH // 2 + 300, HEIGHT // 2 - 125, 50, 50)
         self.target_img = pygame.image.load(os.path.join(ASSETS_PATH, "target.png"))
         self.target_img = pygame.transform.scale(self.target_img, (50, 50))
@@ -127,12 +122,10 @@ class FreeWorld:
         """Load all alien and bullet assets for Phase 2"""
         ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 
-        # Load alien images
         for alien_type in ALIEN_TYPES:
             img = pygame.image.load(os.path.join(ASSETS_PATH, f"alien_{alien_type.lower()}.png")).convert_alpha()
             self.alien_images[alien_type] = pygame.transform.scale(img, (50, 50))
 
-        # Load bullet images
         for color in ["red", "green", "blue"]:
             img = pygame.image.load(os.path.join(ASSETS_PATH, f"bullet_{color}.png")).convert_alpha()
             self.bullet_images[color] = pygame.transform.scale(img, (60, 30))
@@ -255,7 +248,6 @@ class FreeWorld:
 
     def draw(self, screen):
         """Draw all game objects with debug info"""
-        # ... (previous draw code remains the same until after particle drawing)
 
         # Draw debug info (optional)
         if self.phase == 2:
@@ -321,7 +313,7 @@ class FreeWorld:
             text = self.font.render("Shoot", True, (255, 255, 255))
             surface.blit(text, (btn_rect.x + 10, btn_rect.y + 10))
         elif self.phase == 2:
-            start_y = 100  # Start at the top since we're not showing move commands
+            start_y = 100  # Start at the top since not showing move commands
 
             # Phase 2 - Alien-specific Shoot commands
             for i, alien_type in enumerate(ALIEN_TYPES):
@@ -417,7 +409,7 @@ class FreeWorld:
             if self.clear_button.is_clicked(mouse_pos, event):
                 self.command_queue = []
                 self.conditional_blocks = []
-                
+
     def handle_command_pickup(self, mouse_pos):
         """Handle picking up commands from panel with proper phase support"""
         # Calculate the y-position where commands start
@@ -668,7 +660,7 @@ class FreeWorld:
             alien_type = cmd.split()[-1]
             self.fire_bullet(alien_type)
 
-        # Only advance if we're not in an active loop
+        # Only advance if not in an active loop
         if not any(loop['active'] and loop['start'] <= self.current_command_index <= loop['end']
                    for loop in self.loop_blocks):
             self.current_command_index += 1
@@ -883,8 +875,6 @@ class FreeWorld:
         self.conditional_blocks = []
         self.loop_blocks = []  # Reset loop blocks
 
-
-
     def update(self, dt, keys):
         """Update all game state"""
         mouse_pos = pygame.mouse.get_pos()
@@ -1072,6 +1062,7 @@ class FreeWorld:
         pygame.draw.rect(screen, (100, 100, 100), btn_rect, border_radius=4)
         text = self.font.render(self.dragging_command["command"], True, (255, 255, 255))
         screen.blit(text, (btn_rect.x + 10, btn_rect.y + 10))
+
 
 
 
