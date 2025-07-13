@@ -16,11 +16,11 @@ class Command:
         self.conditions = conditions if conditions is not None else {}
         self.nested_commands = nested_commands if nested_commands is not None else []
         self.rect = rect
-        self.condition_var = condition_var
-        self.condition_op = condition_op
-        self.condition_val = condition_val
-        self.editing_condition_part = editing_condition_part
-        self.shoot_target_shape = Circle(0, 0, 8, WHITE)
+        self.condition_var = condition_var  
+        self.condition_op = condition_op 
+        self.condition_val = condition_val 
+        self.editing_condition_part = editing_condition_part 
+        self.shoot_bullet_type = "Type A"  
         self.shoot_target_box_rect = None
         self.editing_text = ""
         self.depth = depth
@@ -36,21 +36,22 @@ class Command:
 
     def _get_color(self):
         colors = {
-            "move": (0, 100, 200),
-            "turn_left": (200, 100, 0),
-            "turn_right": (20, 100, 0),
-            "reverse": (250, 100, 0),
+            "move_up": (0, 100, 200),
+            "move_left": (200, 100, 0),
+            "move_right": (20, 100, 0),
+            "move_down": (250, 100, 0),
             "shoot": (250, 100, 0),
-            "for_loop": FOR_LOOP_COLOR
+            "for_loop": FOR_LOOP_COLOR,
+            "if_statement": (0, 204, 204)
         }
         return colors.get(self.cmd_type, (100, 100, 100))
 
     def _get_text(self):
         texts = {
-            "move": "Move Forward",
-            "turn_left": "Turn Left",
-            "turn_right": "Turn Right",
-            "reverse": "Reverse",
+            "move_up": "Move Up",
+            "move_left": "Move Left",
+            "move_right": "Move Right",
+            "move_down": "Move Down",
             "shoot": "Shoot",
             "for_loop": "For Loop",
             "if_statement": "if block",
@@ -135,11 +136,11 @@ class Command:
         resized_code_font = pygame.font.Font(None, math.floor(
             (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
         if_text = resized_code_font.render(txt, True, WHITE)
-        surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)))
+        surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
         box_start_x = self.rect.x + (10/ORIGINAL_CMD_WIDTH)*self.rect.width + if_text.get_width() + (10/ORIGINAL_CMD_WIDTH)*self.rect.width
-        box_width = (60/ORIGINAL_CMD_WIDTH)*self.rect.width
-        op_width = (30/ORIGINAL_CMD_WIDTH)*self.rect.width
+        box_width = (90/ORIGINAL_CMD_WIDTH)*self.rect.width
+        op_width = (30/ORIGINAL_CMD_WIDTH)*self.rect.width 
         box_height = 20
         box_y = self.rect.y + 5
 
@@ -147,10 +148,10 @@ class Command:
         pygame.draw.rect(surface, BLACK, self.var_box)
         pygame.draw.rect(surface, WHITE, self.var_box, 1)
         if hasattr(self, 'condition_var') and self.condition_var:
-            var_text = self.code_font.render(self.condition_var, True, WHITE)
+            var_text = resized_code_font.render(self.condition_var, True, WHITE)
             surface.blit(var_text, (self.var_box.x + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, self.var_box.y + 3))
 
-        self.op_box = pygame.Rect(box_start_x + box_width + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, box_y, op_width, box_height)
+        """self.op_box = pygame.Rect(box_start_x + box_width + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, box_y, op_width, box_height)
         pygame.draw.rect(surface, BLACK, self.op_box)
         pygame.draw.rect(surface, WHITE, self.op_box, 1)
         if hasattr(self, 'condition_op') and self.condition_op:
@@ -163,7 +164,7 @@ class Command:
         if hasattr(self, 'condition_val') and self.condition_val:
             self.condition_val.x = self.val_box.centerx
             self.condition_val.y = self.val_box.centery
-            self.condition_val.draw(surface)
+            self.condition_val.draw(surface)"""
 
         if hasattr(self, 'editing_condition_part'):
             cursor_box = {
@@ -176,19 +177,32 @@ class Command:
                 pygame.draw.rect(surface, CYAN, cursor_box, 2)
 
     def _draw_shoot_command_content(self, surface):
-        shoot_text = self.code_font.render(self.text, True, WHITE)
-        surface.blit(shoot_text, (self.rect.x + 5, self.rect.y + 5))
-        box_width = 30
-        box_height = 20
-        box_x = self.rect.x + 5 + shoot_text.get_width() + 10
-        box_y = self.rect.y + 5
+        resized_code_font = pygame.font.Font(None, math.floor(
+            (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+        shoot_text = resized_code_font.render(self.text, True, WHITE)
+        surface.blit(shoot_text, (self.rect.x + (5 / ORIGINAL_CMD_WIDTH) * self.rect.width, self.rect.y + 3))
 
-        self.shoot_target_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+        box_x = self.rect.x + (10 / ORIGINAL_CMD_WIDTH) * self.rect.width + shoot_text.get_width() + (
+                    10 / ORIGINAL_CMD_WIDTH) * self.rect.width
+        box_width = (90 / ORIGINAL_CMD_WIDTH) * self.rect.width
+        box_height = 20/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
+        box_y = self.rect.y + 5/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
 
-        pygame.draw.rect(surface, BLACK, self.shoot_target_box_rect)
-        pygame.draw.rect(surface, WHITE, self.shoot_target_box_rect, 1)
+        self.shoot_bullet_type_box = pygame.Rect(box_x, box_y, box_width, box_height)
 
-        if self.shoot_target_shape:
-            self.shoot_target_shape.x = self.shoot_target_box_rect.centerx
+        pygame.draw.rect(surface, BLACK, self.shoot_bullet_type_box)
+        pygame.draw.rect(surface, WHITE, self.shoot_bullet_type_box, 1)
+
+        if self.shoot_bullet_type:
+            resized_code_font = pygame.font.Font(None, math.floor(
+                (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+            type_text = resized_code_font.render(self.shoot_bullet_type, True, WHITE)
+            type_rect = type_text.get_rect(center=self.shoot_bullet_type_box.center)
+            surface.blit(type_text, type_rect)
+            """self.shoot_target_shape.x = self.shoot_target_box_rect.centerx
             self.shoot_target_shape.y = self.shoot_target_box_rect.centery
-            self.shoot_target_shape.draw(surface)
+            # Adjust shape size if necessary to fit the box
+            # For example, if your shapes have a 'set_size' method:
+            # shape_display_size = min(self.shoot_target_box_rect.width, self.shoot_target_box_rect.height) * 0.8
+            # self.shoot_target_shape.set_size(shape_display_size)
+            self.shoot_target_shape.draw(surface)"""

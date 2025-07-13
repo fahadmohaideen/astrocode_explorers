@@ -1,5 +1,6 @@
 
 import pygame
+from pygame.examples.grid import TILE_SIZE
 
 pygame.init()
 WIDTH, HEIGHT = 1000, 800
@@ -11,6 +12,13 @@ STATE_LEVEL2 = 3
 STATE_LEVEL3 = 4
 STATE_LEVEL4 = 5
 
+ALIEN_TYPES = {
+    "Alien Type A": (255, 100, 100),
+    "Alien Type B": (100, 255, 100),
+    "Alien Type C": (100, 100, 255)
+}
+
+# Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 BLUE = (0, 100, 255)
@@ -23,6 +31,7 @@ DARK_GRAY = (30, 30, 30)
 RED = (255, 0, 0)
 ORANGE = (255, 165, 0)
 FOR_LOOP_COLOR = PURPLE
+DARK_OVERLAY_COLOR = (0, 0, 0, 150)
 
 BULLET_SPEED = 180
 BULLET_RADIUS = 5
