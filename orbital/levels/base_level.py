@@ -3,11 +3,13 @@ import pygame
 import math
 import collections
 import copy
+import random
+import os
 
 from core.constants import (
     WIDTH, HEIGHT, BLACK, WHITE, GRAY, DARK_GRAY, RED, GREEN, CYAN, ORANGE,
     FOR_LOOP_COLOR, BULLET_RADIUS, TARGET_MAX_HEALTH, PLAYER_MAX_HEALTH,
-    DAMAGE_PER_HIT, PLAYER_AWARENESS_RANGE, COMMAND_DELAY_MS, screen, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP
+    DAMAGE_PER_HIT, PLAYER_AWARENESS_RANGE, COMMAND_DELAY_MS, screen, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP, ALIEN_TYPES, DARK_OVERLAY_COLOR
 )
 #from game1 import code_font
 from ui.button import Button
@@ -30,7 +32,7 @@ class Level:
         self.menu_font = menu_font
         self.battlefield = pygame.Rect(50, 150, 400, 300)
         self.target = pygame.Rect(60, 160, 60, 60)
-        self.player_size = 20
+        self.player_size = 50
         self.player_pos = [
             self.battlefield.centerx - self.player_size // 2,
             self.battlefield.bottom - self.player_size - 5
@@ -66,21 +68,22 @@ class Level:
         self.command_delay = 50  # ms between commands
         self.player = Player(self.player_pos[0], self.player_pos[1], self.player_size, self.player_size,
                              self.player_angle)
-        self.alien = Alien()
+        self.player.speed = 100
+        #self.alien = Alien(8000, 8000, "Alien Type A")
+        self.aliens = []
         self.current_approaching_alien_bullet_shape = None  # Reset each frame
         self.current_approaching_alien_bullet_shape_temp = None
         # Common commands
         self.commands = {
-            "move": {"color": (0, 100, 200), "text": "Move Forward"},
-            "turn_left": {"color": (200, 100, 0), "text": "Turn Left"},
-            "turn_right": {"color": (20, 100, 0), "text": "Turn Right"},
-            "reverse": {"color": (250, 100, 0), "text": "Reverse"},
+            "move_up": {"color": (0, 100, 200), "text": "Move Up"},
+            "move_left": {"color": (200, 100, 0), "text": "Move Left"},
+            "move_right": {"color": (20, 100, 0), "text": "Move Right"},
+            "move_down": {"color": (250, 100, 0), "text": "Move_down"},
             "shoot": {"color": (250, 100, 0), "text": "Shoot"}
         }
         self._init_commands()
         self.var_dict = {
-            "shape": "circle",
-            "key_press": None
+
         }
         self.bullets_shape_match = {
             "circle": "square",
@@ -104,6 +107,14 @@ class Level:
         self.cmd_tree = None
         self.code_editor = False
         self.game_view = True
+        self.camera_active = True
+        self.camera_offset = pygame.Vector2(0, 0)
+        self.enable_wasd = False
+        self.curr_nearest_alien = None
+        self.moving = False
+        self.TILE_SIZE = 50
+        self.PANEL_COLOR = (30, 30, 30, 200)
+        #self.spawn_aliens(3)
 
     def reset_level(self, code_font, title_font, menu_font):
         self.__init__(code_font, title_font, menu_font)
@@ -122,6 +133,100 @@ class Level:
         for cmd_type in basic_commands:
             self.code_blocks.append(Command(cmd_type))
 
+    def update_camera(self):
+        """Update camera position to follow hero"""
+        if self.camera_active:
+            self.camera_offset.x = self.player.pos.x - self.player_pos[0]
+            self.camera_offset.y = self.player.pos.y - self.player_pos[1]
+
+    def load_assets(self):
+        ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+
+        # Load tile and hero images
+        raw_tile = pygame.image.load(os.path.join(ASSETS_PATH, "tile.png"))
+        self.tile_img = pygame.transform.scale(raw_tile, (self.TILE_SIZE, self.TILE_SIZE))
+        self.hero_img = pygame.image.load(os.path.join(ASSETS_PATH, "hero.png"))
+        self.hero_img = pygame.transform.scale(self.hero_img, (55, 55))
+        self.hero_rect = self.hero_img.get_rect(center=self.player.pos)
+
+        # Load animation frames
+        self.walk_frames = [
+            pygame.transform.scale(pygame.image.load(os.path.join(ASSETS_PATH, "walk1.png")), (50, 50)),
+            pygame.transform.scale(pygame.image.load(os.path.join(ASSETS_PATH, "walk2.png")), (50, 50)),
+            pygame.transform.scale(pygame.image.load(os.path.join(ASSETS_PATH, "walk3.png")), (50, 50))
+        ]
+
+        for alien in ALIEN_TYPES.keys():
+            img = pygame.image.load(os.path.join(ASSETS_PATH, f"{'_'.join(alien.split())}.png"))
+            self.var_dict[alien][2] = pygame.transform.scale(img, (60, 60))
+
+    def spawn_aliens(self, count):
+        """Spawn aliens at random positions with better distribution"""
+        spawn_margin = 300  # Minimum distance from screen edges
+        spawn_area_width = WIDTH + 1000
+        spawn_area_height = HEIGHT + 1000
+        quad_nums = [a for a in range(count)]
+
+        for b in range(count):
+            alien_type = list(ALIEN_TYPES.keys())[b]
+            # Spawn in one of four quadrants around the player
+            quadrant = random.choice(quad_nums)
+            if quadrant == 0:  # Top-right
+                x = random.randint(WIDTH // 2 + 200, spawn_area_width)
+                y = random.randint(0, HEIGHT // 2 - 200)
+                quad_nums.remove(quadrant)
+            elif quadrant == 1:  # Bottom-right
+                x = random.randint(WIDTH // 2 + 200, spawn_area_width)
+                y = random.randint(HEIGHT // 2 + 200, spawn_area_height)
+                quad_nums.remove(quadrant)
+            elif quadrant == 2:  # Top-left
+                x = random.randint(0, WIDTH // 2 - 200)
+                y = random.randint(0, HEIGHT // 2 - 200)
+                quad_nums.remove(quadrant)
+            else:  # Bottom-left
+                x = random.randint(0, WIDTH // 2 - 200)
+                y = random.randint(HEIGHT // 2 + 200, spawn_area_height)
+                quad_nums.remove(quadrant)
+
+
+            self.aliens.append(Alien(x, y, alien_type))
+
+    def draw_minimap(self):
+        map_size = 150
+        map_pos = (WIDTH - map_size - 10, 10)
+        pygame.draw.rect(screen, (50, 50, 50), (*map_pos, map_size, map_size))
+
+        # Draw hero on minimap
+        hero_map_x = map_pos[0] + (self.player.pos.x / (WIDTH + 1000)) * map_size
+        hero_map_y = map_pos[1] + (self.player.pos.y / (HEIGHT + 1000)) * map_size
+        pygame.draw.circle(screen, (0, 255, 0), (int(hero_map_x), int(hero_map_y)), 5)
+
+        # Draw aliens on minimap
+        for alien in self.aliens:
+            alien_map_x = map_pos[0] + (alien.pos.x / (WIDTH + 1000)) * map_size
+            alien_map_y = map_pos[1] + (alien.pos.y / (HEIGHT + 1000)) * map_size
+            pygame.draw.circle(screen, ALIEN_TYPES[alien.name],
+                               (int(alien_map_x), int(alien_map_y)), 3)
+
+    def draw_alien_dir(self):
+        for alien in self.aliens:
+            alien_screen_pos = alien.pos - self.camera_offset
+
+            # Draw direction indicator if off-screen
+            if not (-100 < alien_screen_pos.x < WIDTH + 100 and
+                    -100 < alien_screen_pos.y < HEIGHT + 100):
+                # Calculate direction to alien
+                dir_vec = (alien.pos - self.player.pos).normalize()
+                indicator_pos = self.player.offset_pos + dir_vec * 200
+
+                # Draw arrow pointing to alien
+                pygame.draw.circle(screen, ALIEN_TYPES[alien.name],
+                                   (int(indicator_pos.x), int(indicator_pos.y)), 10)
+                pygame.draw.line(screen, ALIEN_TYPES[alien.name],
+                                 (self.player.offset_pos.x, self.player.offset_pos.y),
+                                 (indicator_pos.x, indicator_pos.y), 2)
+                continue
+
     def _check_bullet_bullet_collision(self, bullet1, bullet2):
         """Checks for AABB collision between two bullets."""
         # Assuming bullets are drawn from their center (x,y) and have a radius
@@ -133,14 +238,20 @@ class Level:
 
         return rect1.colliderect(rect2)
 
-    def update(self, dt):
-        """Call this every frame from your main game loop"""
-        self.player.update_bullets(self.alien, self.level_id, dt)
-        if self.level_id >= 3:
-            self.alien.update_bullets(self.player, self.level_id, dt)
-        #self.current_approaching_alien_bullet_shape = None  # Reset each frame
-        closest_dist = float('inf')
+    def draw_terrain(self, surface):
+        """Draw tiled background with camera offset"""
+        for x in range(-self.TILE_SIZE, WIDTH + self.TILE_SIZE, self.TILE_SIZE):
+            for y in range(-self.TILE_SIZE, HEIGHT + self.TILE_SIZE, self.TILE_SIZE):
+                surface.blit(self.tile_img,
+                             (x - self.camera_offset.x % self.TILE_SIZE,
+                              y - self.camera_offset.y % self.TILE_SIZE))
 
+    def update(self, dt):
+        pass
+        """Call this every frame from your main game loop"""
+        #self.player.update_bullets(self.alien, self.level_id, dt)
+        """"if self.level_id >= 3:
+            self.alien.update_bullets(self.player, self.level_id, dt)
         for bullet in self.alien.bullets:
             if bullet.active:
                 # Calculate distance from bullet to player's center
@@ -190,7 +301,7 @@ class Level:
         # This part needs to be careful to not re-add bullets that were just recycled.
         # The simplest way is to rebuild the lists from active bullets.
         self.player.bullets = [b for b in player_bullets_after_b2b if b.active]
-        self.alien.bullets = [b for b in self.alien.bullets if b.active]  # Re-filter alien bullets too
+        self.alien.bullets = [b for b in self.alien.bullets if b.active]""" # Re-filter alien bullets too
 
         #self.update_commands(dt)
 
@@ -231,18 +342,20 @@ class Level:
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def draw_bullets(self, surface):
-        if not self.player.bullets and not self.alien.bullets:
-            return
         if self.player.bullets:
             for bullet in self.player.bullets:
-                bullet.draw(screen)
-        if self.alien.bullets:
+                bullet.draw(surface, self.camera_offset)
+        for alien in self.aliens:
+            if alien.bullets:
+                for bullet in alien.bullets:
+                    bullet.draw(surface, self.camera_offset)
+        """if self.alien.bullets:
             for bullet in self.alien.bullets:
-                bullet.draw(screen)
+                bullet.draw(screen)"""
 
     def draw_player(self, surface):
         # Player body
-        body_rect = pygame.Rect(*self.player_pos, self.player_size, self.player_size)
+        body_rect = pygame.Rect(*(self.player.pos - self.camera_offset), self.player_size, self.player_size)
         pygame.draw.rect(surface, CYAN, body_rect)
 
         # Gun (rotated based on angle)
@@ -416,7 +529,7 @@ class Level:
             self.current_command = None"""
             self.code_editor = False
             self.game_view = True
-            self.cmd_gen = self.execute_commands(self.main_code)
+            self.cmd_gen = self.execute_commands(self.main_code, None)
 
             #self.execute_commands(self.main_code, screen, mouse_pos, event)
 
@@ -426,62 +539,66 @@ class Level:
             main_code_height = 0
             #self.recalculate_code_positions()
 
-    def execute_commands(self, cmd_list):
-        step_delay = 0
+    def execute_commands(self, cmd_list, parent_cmd):
         for cmd in cmd_list:
-            print(self.var_dict["key_press"])
             if cmd.is_loop():
                 for _ in range(cmd.iterations):
                     #self.command_queue[:0] = cmd.nested_commands
                     #self.update_commands(dt)
-                    yield from self.execute_commands(cmd.nested_commands)
+                    yield from self.execute_commands(cmd.nested_commands, cmd)
             elif cmd.is_conditional():
-                if self.var_dict[cmd.condition_var] == cmd.condition_val.shape:
+                if self.var_dict[cmd.condition_var][0]:
                     #self.command_queue[:0] = cmd.nested_commands
                     #self.update_commands(dt)
-                    yield from self.execute_commands(cmd.nested_commands)
+                    yield from self.execute_commands(cmd.nested_commands, cmd)
             elif cmd.cmd_type == "while_loop":
                 while True:
-                    yield from self.execute_commands(cmd.nested_commands)
-                #self.execute_commands(cmd.nested_commands)
-
-
-
-
+                    yield from self.execute_commands(cmd.nested_commands, cmd)
             else:
-                if cmd.cmd_type == "move":
+                if cmd.cmd_type == "move_up":
                     dx = 50 * math.sin(math.radians(self.player.angle))
                     dy = -50 * math.cos(math.radians(self.player.angle))
-                    self.player.x += dx
-                    self.player.y += dy
+                    self.player.pos += pygame.Vector2(dx, dy)
 
                     # Boundary checking
-                    self.player.x = max(self.battlefield.left,
+                    """self.player.x = max(self.battlefield.left,
                                         min(self.player.x, self.battlefield.right - self.player.width))
                     self.player.y = max(self.battlefield.top,
-                                        min(self.player.y, self.battlefield.bottom - self.player.height))
-                elif cmd.cmd_type == "turn_left":
-                    self.player.angle = (self.player.angle - 90) % 360
+                                        min(self.player.y, self.battlefield.bottom - self.player.height))"""
+                elif cmd.cmd_type == "move_left":
+                    #self.player.angle = (self.player.angle - 90) % 360
+                    self.player.pos -= pygame.Vector2(50, 0)
 
-                elif cmd.cmd_type == "reverse":
-                    dx = 20 * math.sin(math.radians(self.player.angle))
-                    dy = -20 * math.cos(math.radians(self.player.angle))
-                    self.player.x -= dx
-                    self.player.y -= dy
+                elif cmd.cmd_type == "move_down":
+                    #dx = 20 * math.sin(math.radians(self.player.angle))
+                    #dy = -20 * math.cos(math.radians(self.player.angle))
+                    self.player.pos += pygame.Vector2(0, 50)
 
                     # Boundary checking
-                    self.player.x = max(self.battlefield.left,
+                    """self.player.x = max(self.battlefield.left,
                                         min(self.player.x, self.battlefield.right - self.player.width))
                     self.player.y = max(self.battlefield.top,
-                                        min(self.player.y, self.battlefield.bottom - self.player.height))
+                                        min(self.player.y, self.battlefield.bottom - self.player.height))"""
 
-                elif cmd.cmd_type == "turn_right":
-                    self.player.angle = (self.player.angle + 90) % 360
+                elif cmd.cmd_type == "move_right":
+                    #self.player.angle = (self.player.angle + 90) % 360
+                    self.player.pos += pygame.Vector2(50, 0)
 
                 elif cmd.cmd_type == "shoot":
                     #if self.current_approaching_alien_bullet_shape != self.current_approaching_alien_bullet_shape_temp:
-                    shape = cmd.shoot_target_shape.shape
-                    self.player.shoot_bullet(shape=shape)
+                    bullet_type = cmd.shoot_bullet_type
+                    color = ALIEN_TYPES["Alien" + " " + bullet_type]
+                    self.player.shoot_bullet(bullet_type=bullet_type, alien_pos=self.curr_nearest_alien.pos, color=color)
+
+                    """if parent_cmd:
+                        if parent_cmd.is_conditional():
+                            alien = self.var_dict[parent_cmd.condition_var][1]
+                            bullet_type = cmd.shoot_bullet_type
+                            color = ALIEN_TYPES[parent_cmd.condition_var]
+                            #print(color)
+                            self.player.shoot_bullet(bullet_type=bullet_type, alien_pos=alien.pos, color=color)"""
+
+
                     #self.current_approaching_alien_bullet_shape_temp = self.current_approaching_alien_bullet_shape
 
                 yield
@@ -638,13 +755,32 @@ class Level:
                 self.current_popup = None
                 self.exit_to_levels = True
 
+    def draw_panel(self, surface):
+        """Draw full-screen command panel"""
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill(DARK_OVERLAY_COLOR)
+        surface.blit(overlay, (0, 0))
+        #self.draw_command_column(surface)
+        #self.draw_execution_column(surface)
+        self.draw_code_blocks(surface)
+
+        # Draw Run/Reset/Clear buttons only when panel is visible
+        self.run_button.draw(surface)
+        self.reset_button.draw(surface)
+        #self.clear_button.draw(surface)
+        # Draw exit button
+        #self.exit_button.draw(surface)
+
     def draw_all(self, screen, mouse_pos, event):
         # Common drawing code
         pygame.draw.rect(screen, GRAY, self.battlefield, border_radius=5)
         pygame.draw.rect(screen, WHITE, self.battlefield, 2, border_radius=5)
         #pygame.draw.rect(screen, RED, self.target, border_radius=3)
-        self.alien.draw_player(screen)
-        self.player.draw_player(screen)
+        #self.alien.pos = pygame.Vector2(self.alien.x, self.alien.y)
+        #self.player.pos = pygame.Vector2(self.player.x, self.player.y)
+        for alien in self.aliens:
+            alien.draw_player(screen)
+        #self.alien.draw_player(screen)
         self.draw_code_blocks(screen)
         self.run_button.draw(screen)
         self.reset_button.draw(screen)
@@ -654,17 +790,28 @@ class Level:
         self.draw_bullets(screen)
         self.draw_popups(screen, mouse_pos, event)  # Delegate popups to subclasses
 
-    def draw_game(self, screen, mouse_pos, event):
-        self.alien.draw_player(screen)
-        self.player.draw_player(screen)
+    def draw_game(self, screen, mouse_pos, event, frame_index):
+        self.update_camera()
+        self.draw_terrain(screen)
+        #self.draw_minimap()
+        #self.draw_alien_dir()
+        self.player.offset_pos = self.player.pos - self.camera_offset
+        for alien in self.aliens:
+            alien.offset_pos = alien.pos - self.camera_offset
+            alien.draw_player(screen, self.var_dict[alien.name][2])
+            alien.draw_health_bar(screen)
+        #self.alien.draw_player(screen)
+        #self.player.draw_player(screen)
+        self.player.draw_player(screen, self.walk_frames[frame_index])
         #self.draw_code_blocks(screen)
         self.run_button.draw(screen)
         self.reset_button.draw(screen)
-        self.alien.draw_health_bar(screen)
         if self.level_id >= 3:
             self.player.draw_health_bar(screen)
         self.draw_bullets(screen)
-        self.draw_popups(screen, mouse_pos, event)
+        self.draw_minimap()
+        self.draw_alien_dir()
+        #self.draw_popups(screen, mouse_pos, event)
 
 
 # --- Level Specific Implementations ---

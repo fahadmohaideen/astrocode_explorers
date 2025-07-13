@@ -21,7 +21,7 @@ class Command:
         self.condition_op = condition_op  # e.g. ">"
         self.condition_val = condition_val  # e.g. "50"
         self.editing_condition_part = editing_condition_part  # Tracks which box is being edited
-        self.shoot_target_shape = Circle(0, 0, 8, WHITE)  # Stores the shape (Circle, Square, Triangle) for shoot target
+        self.shoot_bullet_type = "Type A"  # Stores the shape (Circle, Square, Triangle) for shoot target
         self.shoot_target_box_rect = None
         self.editing_text = ""
         self.depth = depth
@@ -38,21 +38,22 @@ class Command:
 
     def _get_color(self):
         colors = {
-            "move": (0, 100, 200),
-            "turn_left": (200, 100, 0),
-            "turn_right": (20, 100, 0),
-            "reverse": (250, 100, 0),
+            "move_up": (0, 100, 200),
+            "move_left": (200, 100, 0),
+            "move_right": (20, 100, 0),
+            "move_down": (250, 100, 0),
             "shoot": (250, 100, 0),
-            "for_loop": FOR_LOOP_COLOR
+            "for_loop": FOR_LOOP_COLOR,
+            "if_statement": (0, 204, 204)
         }
         return colors.get(self.cmd_type, (100, 100, 100))  # Default gray
 
     def _get_text(self):
         texts = {
-            "move": "Move Forward",
-            "turn_left": "Turn Left",
-            "turn_right": "Turn Right",
-            "reverse": "Reverse",
+            "move_up": "Move Up",
+            "move_left": "Move Left",
+            "move_right": "Move Right",
+            "move_down": "Move Down",
             "shoot": "Shoot",
             "for_loop": "For Loop",
             "if_statement": "if block",
@@ -166,11 +167,11 @@ class Command:
         resized_code_font = pygame.font.Font(None, math.floor(
             (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
         if_text = resized_code_font.render(txt, True, WHITE)
-        surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)))
+        surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
         # Calculate positions for condition boxes
         box_start_x = self.rect.x + (10/ORIGINAL_CMD_WIDTH)*self.rect.width + if_text.get_width() + (10/ORIGINAL_CMD_WIDTH)*self.rect.width
-        box_width = (60/ORIGINAL_CMD_WIDTH)*self.rect.width  # Width for variable and value boxes
+        box_width = (90/ORIGINAL_CMD_WIDTH)*self.rect.width  # Width for variable and value boxes
         op_width = (30/ORIGINAL_CMD_WIDTH)*self.rect.width  # Width for operator box
         box_height = 20
         box_y = self.rect.y + 5
@@ -182,11 +183,11 @@ class Command:
 
         # Draw variable name if it exists
         if hasattr(self, 'condition_var') and self.condition_var:
-            var_text = self.code_font.render(self.condition_var, True, WHITE)
+            var_text = resized_code_font.render(self.condition_var, True, WHITE)
             surface.blit(var_text, (self.var_box.x + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, self.var_box.y + 3))
 
         # 2. Operator box (middle)
-        self.op_box = pygame.Rect(box_start_x + box_width + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, box_y, op_width, box_height)
+        """self.op_box = pygame.Rect(box_start_x + box_width + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, box_y, op_width, box_height)
         pygame.draw.rect(surface, BLACK, self.op_box)
         pygame.draw.rect(surface, WHITE, self.op_box, 1)
 
@@ -206,7 +207,7 @@ class Command:
             #surface.blit(val_text, (val_box.x + 5, val_box.y + 3))
             self.condition_val.x = self.val_box.centerx
             self.condition_val.y = self.val_box.centery
-            self.condition_val.draw(surface)
+            self.condition_val.draw(surface)"""
 
         # Add edit cursor if currently editing
         if hasattr(self, 'editing_condition_part'):
@@ -222,28 +223,34 @@ class Command:
     def _draw_shoot_command_content(self, surface):
         """Draw the content for a 'shoot' command with a target shape box."""
         # Draw "Shoot" text
-        shoot_text = self.code_font.render(self.text, True, WHITE)  # self.text will be "Shoot"
-        surface.blit(shoot_text, (self.rect.x + 5, self.rect.y + 5))
+        resized_code_font = pygame.font.Font(None, math.floor(
+            (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+        shoot_text = resized_code_font.render(self.text, True, WHITE)
+        surface.blit(shoot_text, (self.rect.x + (5 / ORIGINAL_CMD_WIDTH) * self.rect.width, self.rect.y + 3))
 
-        # Calculate position for the new target box
-        box_width = 30  # Example size for the target box
-        box_height = 20
-        # Position it right next to the "Shoot" text
-        box_x = self.rect.x + 5 + shoot_text.get_width() + 10
-        box_y = self.rect.y + 5
+        box_x = self.rect.x + (10 / ORIGINAL_CMD_WIDTH) * self.rect.width + shoot_text.get_width() + (
+                    10 / ORIGINAL_CMD_WIDTH) * self.rect.width
+        box_width = (90 / ORIGINAL_CMD_WIDTH) * self.rect.width  # Width for variable and value boxes
+        box_height = 20/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
+        box_y = self.rect.y + 5/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
 
-        self.shoot_target_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+        self.shoot_bullet_type_box = pygame.Rect(box_x, box_y, box_width, box_height)
 
         # Draw the target box background and border
-        pygame.draw.rect(surface, BLACK, self.shoot_target_box_rect)
-        pygame.draw.rect(surface, WHITE, self.shoot_target_box_rect, 1)
+        pygame.draw.rect(surface, BLACK, self.shoot_bullet_type_box)
+        pygame.draw.rect(surface, WHITE, self.shoot_bullet_type_box, 1)
 
         # Draw the shape if it exists
-        if self.shoot_target_shape:
-            self.shoot_target_shape.x = self.shoot_target_box_rect.centerx
+        if self.shoot_bullet_type:
+            resized_code_font = pygame.font.Font(None, math.floor(
+                (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+            type_text = resized_code_font.render(self.shoot_bullet_type, True, WHITE)
+            type_rect = type_text.get_rect(center=self.shoot_bullet_type_box.center)
+            surface.blit(type_text, type_rect)
+            """self.shoot_target_shape.x = self.shoot_target_box_rect.centerx
             self.shoot_target_shape.y = self.shoot_target_box_rect.centery
             # Adjust shape size if necessary to fit the box
             # For example, if your shapes have a 'set_size' method:
             # shape_display_size = min(self.shoot_target_box_rect.width, self.shoot_target_box_rect.height) * 0.8
             # self.shoot_target_shape.set_size(shape_display_size)
-            self.shoot_target_shape.draw(surface)
+            self.shoot_target_shape.draw(surface)"""
