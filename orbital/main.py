@@ -3,7 +3,7 @@ import pygame
 import sys
 import time
 import math
-
+import os
 
 from core.constants import (
     WIDTH, HEIGHT, BLACK, CYAN, PURPLE, WHITE, DARK_GRAY,
@@ -47,6 +47,8 @@ clock = pygame.time.Clock()
 running = True
 prev_time = time.time()
 x = 0
+walk_frame_index = 0
+walk_frame_delay = 0
 
 while running:
     mouse_pos = pygame.mouse.get_pos()
@@ -54,6 +56,7 @@ while running:
     dt = (current_time - prev_time) 
     #print(dt)
     prev_time = current_time
+    walk_frame_delay += 1
 
     #update_starfield(dt)
 
@@ -112,39 +115,52 @@ while running:
 
     elif current_state == STATE_LEVEL2:
         if level2.game_view:
-            level2.draw_game(screen, mouse_pos, event)
+            if not level2.moving:
+                walk_frame_index = 0
+            if level2.moving and walk_frame_delay >= 10:
+                walk_frame_index += 1
+                walk_frame_delay = 0
+                if walk_frame_index > 2:
+                    walk_frame_index = 0
+            level2.draw_game(screen, mouse_pos, event, walk_frame_index)
         if level2.code_editor:
-            level2.draw_code_blocks(screen)
-            level2.run_button.draw(screen)
-            level2.reset_button.draw(screen)
+            level2.draw_game(screen, mouse_pos, event, walk_frame_index)
+            level2.draw_panel(screen)
+        #level2.alien.shoot_alien_bullets()
         try:
             next(level2.cmd_gen)
         except (StopIteration, TypeError):
             pass
+        keys = pygame.key.get_pressed()
+        level2.update(dt, keys)
 
-        level2.update(dt)
 
     elif current_state == STATE_LEVEL3:
         if level3.game_view:
-            level3.draw_game(screen, mouse_pos, event)
-            if -20 < (level3.alien.y + level3.alien.height / 2) - (level3.player.y + level3.player.height / 2) < 20:
-                level3.alien.shoot_alien_bullets()
+            if not level3.moving:
+                walk_frame_index = 0
+            if level3.moving and walk_frame_delay >= 10:
+                walk_frame_index += 1
+                walk_frame_delay = 0
+                if walk_frame_index > 2:
+                    walk_frame_index = 0
+            level3.draw_game(screen, mouse_pos, event, walk_frame_index)
         if level3.code_editor:
-            level3.draw_code_blocks(screen)
-            level3.run_button.draw(screen)
-            level3.reset_button.draw(screen)
+            level3.draw_game(screen, mouse_pos, event, walk_frame_index)
+            level3.draw_panel(screen)
         try:
             next(level3.cmd_gen)
         except (StopIteration, TypeError):
             pass
-        level3.update(dt)
+        keys = pygame.key.get_pressed()
+        level3.update(dt, keys)
 
     elif current_state == STATE_LEVEL4:
         #level4.var_dict["key_press"] = None
         if level4.game_view:
             level4.draw_game(screen, mouse_pos, event)
-            if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:
-                level4.alien.shoot_alien_bullets()
+            #if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:
+                #level4.alien.shoot_alien_bullets()
         if level4.code_editor:
             level4.draw_code_blocks(screen)
             level4.run_button.draw(screen)
@@ -153,11 +169,13 @@ while running:
             next(level4.cmd_gen)
         except (StopIteration, TypeError):
             pass
-        level4.update(dt)
+        keys = pygame.key.get_pressed()
+        level4.update(dt, keys)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
 
         if current_state == STATE_START:
             if start_button.is_clicked(mouse_pos, event):
@@ -181,8 +199,6 @@ while running:
                 level4.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
 
         elif current_state == STATE_LEVEL1:
-            if event.type == pygame.KEYDOWN:
-                level1.var_dict["key_press"] = pygame.key.name(event.key)
             level1.handle_events(event, mouse_pos)
             if level1.exit_to_levels:
                 current_state = STATE_LEVELS
@@ -191,26 +207,18 @@ while running:
         elif current_state == STATE_LEVEL2:
             #level2.draw_all()
             level2.handle_events(event, mouse_pos)
-
             if level2.exit_to_levels:
                 current_state = STATE_LEVELS
                 level2.exit_to_levels = False
 
         elif current_state == STATE_LEVEL3:
             level3.handle_events(event, mouse_pos)
-
             if level3.exit_to_levels:
                 current_state = STATE_LEVELS
                 level3.exit_to_levels = False
 
         elif current_state == STATE_LEVEL4:
-            #level4.cmd_tree = level4.traverse_cmd(level4.main_code, 1)
-            if event.type == pygame.KEYDOWN:
-                level4.var_dict["key_press"] = pygame.key.name(event.key)
-            if event.type == pygame.KEYUP:
-                level4.var_dict["key_press"] = None
             level4.handle_events(event, mouse_pos)
-
             if level4.exit_to_levels:
                 current_state = STATE_LEVELS
                 level4.exit_to_levels = False
