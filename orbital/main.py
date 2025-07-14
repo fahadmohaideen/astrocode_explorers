@@ -151,13 +151,17 @@ while running:
     elif current_state == STATE_LEVEL4:
         #level4.var_dict["key_press"] = None
         if level4.game_view:
-            level4.draw_game(screen, mouse_pos, event)
-            #if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:
-                #level4.alien.shoot_alien_bullets()
+            if not level4.moving:
+                walk_frame_index = 0
+            if level4.moving and walk_frame_delay >= 10:
+                walk_frame_index += 1
+                walk_frame_delay = 0
+                if walk_frame_index > 2:
+                    walk_frame_index = 0
+            level4.draw_game(screen, mouse_pos, event, walk_frame_index)
         if level4.code_editor:
-            level4.draw_code_blocks(screen)
-            level4.run_button.draw(screen)
-            level4.reset_button.draw(screen)
+            level4.draw_game(screen, mouse_pos, event, walk_frame_index)
+            level4.draw_panel(screen)
         try:
             next(level4.cmd_gen)
         except (StopIteration, TypeError):

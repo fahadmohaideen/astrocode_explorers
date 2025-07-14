@@ -498,6 +498,8 @@ class Level:
                     #self.command_queue[:0] = cmd.nested_commands
                     #self.update_commands(dt)
                     yield from self.execute_commands(cmd.nested_commands, cmd)
+
+                yield
             elif cmd.cmd_type == "while_loop":
                 while True:
                     yield from self.execute_commands(cmd.nested_commands, cmd)
