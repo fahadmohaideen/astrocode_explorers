@@ -111,9 +111,11 @@ class Player:
                 bullet.pos.x += bullet.dx * dt * BULLET_SPEED
                 bullet.pos.y += bullet.dy * dt * BULLET_SPEED
             else:
-                if prev_bullet.pos.distance_to(bullet.pos) > 40:
+                if prev_bullet.pos.distance_to(bullet.pos) > 50:
                     bullet.pos.x += bullet.dx * dt * BULLET_SPEED
                     bullet.pos.y += bullet.dy * dt * BULLET_SPEED
+                else:
+                    bullet.active = False
             #self.current_bullet = bullet
 
             # Boundary check
