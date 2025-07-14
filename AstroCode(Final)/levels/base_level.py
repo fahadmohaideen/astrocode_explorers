@@ -19,7 +19,7 @@ from entities.bullet import Bullet
 from entities.commands import Command
 from entities.bullet_shapes import Circle, Square, Triangle# Import shape classes
 
-from orbital.core.constants import CODE_FONT_SIZE
+from core.constants import CODE_FONT_SIZE
 
 pygame.init()
 pygame.font.init()
@@ -34,7 +34,7 @@ class Level:
         self.target = pygame.Rect(60, 160, 60, 60)
         self.player_size = 50
         self.player_pos = [
-            self.battlefield.centerx - self.player_size // 2,
+            self.battlefield.centerx + 200,
             self.battlefield.bottom - self.player_size - 5
         ]
         self.player_angle = 0
@@ -68,7 +68,7 @@ class Level:
         self.command_delay = 50  # ms between commands
         self.player = Player(self.player_pos[0], self.player_pos[1], self.player_size, self.player_size,
                              self.player_angle)
-        self.player.speed = 100
+        self.player.speed = 300
         #self.alien = Alien(8000, 8000, "Alien Type A")
         self.aliens = []
         self.current_approaching_alien_bullet_shape = None  # Reset each frame
@@ -114,6 +114,9 @@ class Level:
         self.moving = False
         self.TILE_SIZE = 50
         self.PANEL_COLOR = (30, 30, 30, 200)
+        self.frame_index = 0
+        self.animation_counter = 0
+        self.animation_speed = 0.2
         #self.spawn_aliens(3)
 
     def reset_level(self, code_font, title_font, menu_font):
@@ -147,7 +150,11 @@ class Level:
         self.tile_img = pygame.transform.scale(raw_tile, (self.TILE_SIZE, self.TILE_SIZE))
         self.hero_img = pygame.image.load(os.path.join(ASSETS_PATH, "hero.png"))
         self.hero_img = pygame.transform.scale(self.hero_img, (55, 55))
-        self.hero_rect = self.hero_img.get_rect(center=self.player.pos)
+        self.hero_rect = self.hero_img.get_rect(
+            center=(self.battlefield.centerx,
+                    self.battlefield.bottom - self.player_size // 2 - 5)
+        )
+        self.player.pos = pygame.Vector2(self.hero_rect.x, self.hero_rect.y)
 
         # Load animation frames
         self.walk_frames = [
@@ -355,7 +362,11 @@ class Level:
 
     def draw_player(self, surface):
         # Player body
-        body_rect = pygame.Rect(*(self.player.pos - self.camera_offset), self.player_size, self.player_size)
+        body_rect = self.hero_img.get_rect(
+            center=(self.battlefield.centerx - self.camera_offset.x,
+                    self.battlefield.bottom - self.player_size // 2 - 5 - self.camera_offset.y)
+        )
+        screen.blit(self.walk_frames[frame_index], body_rect)
         pygame.draw.rect(surface, CYAN, body_rect)
 
         # Gun (rotated based on angle)
@@ -567,12 +578,12 @@ class Level:
                                         min(self.player.y, self.battlefield.bottom - self.player.height))"""
                 elif cmd.cmd_type == "move_left":
                     #self.player.angle = (self.player.angle - 90) % 360
-                    self.player.pos -= pygame.Vector2(50, 0)
+                    self.player.pos -= pygame.Vector2(80, 0)
 
                 elif cmd.cmd_type == "move_down":
                     #dx = 20 * math.sin(math.radians(self.player.angle))
                     #dy = -20 * math.cos(math.radians(self.player.angle))
-                    self.player.pos += pygame.Vector2(0, 50)
+                    self.player.pos += pygame.Vector2(0, 80)
 
                     # Boundary checking
                     """self.player.x = max(self.battlefield.left,
@@ -582,7 +593,7 @@ class Level:
 
                 elif cmd.cmd_type == "move_right":
                     #self.player.angle = (self.player.angle + 90) % 360
-                    self.player.pos += pygame.Vector2(50, 0)
+                    self.player.pos += pygame.Vector2(80, 0)
 
                 elif cmd.cmd_type == "shoot":
                     #if self.current_approaching_alien_bullet_shape != self.current_approaching_alien_bullet_shape_temp:
