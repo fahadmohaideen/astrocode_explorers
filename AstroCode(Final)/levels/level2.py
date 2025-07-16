@@ -57,22 +57,23 @@ class Level2(Level):
             self.moving = False
 
         self.player.pos += movement
+
+        # Reset proximity flags at start of each frame
+        self.var_dict["Alien near"][0] = False
         for alien in self.aliens:
-            if self.player.pos.distance_to(alien.pos) < 200:
+            alien_near = self.player.pos.distance_to(alien.pos) < 200
+
+            # Update individual alien tracking
+            self.var_dict[alien.name][0] = alien_near
+            self.var_dict[alien.name][1] = alien if alien_near else None
+
+            # OR condition: if ANY alien is near
+            if alien_near:
                 self.var_dict["Alien near"][0] = True
-                self.var_dict[alien.name][0] = True
-                self.var_dict[alien.name][1] = alien
-                self.curr_nearest_alien = alien
-            else:
-                self.var_dict["Alien near"][0] = False
-                self.var_dict[alien.name][0] = False
-                self.var_dict[alien.name][1] = None
-                #self.curr_nearest_alien = None
+                self.curr_nearest_alien = alien  # Track the nearest one
 
         for alien in self.aliens:
             self.player.update_bullets(alien, self.level_id, dt)
-            #alien.shoot_alien_bullets(self.player, dt)
-
 
         super().update(dt)
 

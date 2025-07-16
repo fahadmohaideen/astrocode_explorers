@@ -2,12 +2,18 @@
 import pygame
 import math
 import random
-from entities.player import Player
+from entities.player import Player, Bullet
+from core.constants import ALIEN_MAX_HEALTH, TARGET_MAX_HEALTH
 
 from core.constants import (
+
+
     WIDTH, HEIGHT, ORANGE, BLUE, GREEN, RED, WHITE, CYAN,
-    BULLET_RADIUS, BULLET_SPEED, PLAYER_MAX_HEALTH, TARGET_MAX_HEALTH, DAMAGE_PER_HIT, ALIEN_TYPES
+    BULLET_RADIUS, BULLET_SPEED, PLAYER_MAX_HEALTH,
+    TARGET_MAX_HEALTH, DAMAGE_PER_HIT, ALIEN_TYPES,
+    ALIEN_MAX_HEALTH  # Make sure this is defined in constants.py
 )
+
 
 class Alien(Player):
     def __init__(self, x, y, name):
@@ -16,28 +22,109 @@ class Alien(Player):
         self.y = y
         self.width = 60
         self.height = 60
-        self.pos = pygame.Vector2(self.x + self.width/2, self.y + self.height/2)
+        self.pos = pygame.Vector2(self.x + self.width / 2, self.y + self.height / 2)
         self.offset_pos = self.pos
         self.angle = 90
-        #self.body_rect = pygame.Rect(self.offset_pos.x, self.offset_pos.y, self.width, self.height)
-        self.shape_options = ["circle", "square", "triangle"]
-        self.prev_time = 0  # Initialize with current ticks for consistent timing
-        self.health = TARGET_MAX_HEALTH  # Alien uses TARGET_MAX_HEALTH
+        self.active = True  # New active state flag
+        self.health = ALIEN_MAX_HEALTH
         self.name = name
-    """def draw_health_bar(self, surface):
-        
-        bar_width = self.width
-        bar_height = 10
-        bar_x = self.x
-        bar_y = self.y - bar_height - 5
+        self.shape_options = ["circle", "square", "triangle"]
+        self.prev_time = 0
+        self.bullets = []
+        self.bullet_pool = []
+        self.shoot_cooldown = 1000  # ms between shots
+        self.detection_range = 500  # pixels
 
-        pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = (self.health / TARGET_MAX_HEALTH) * bar_width
-        pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
-        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)"""
+    def update(self, dt, player=None):
+        """Update alien state and bullets"""
+        # Update bullet positions
+        for bullet in self.bullets:
+            if bullet.active:
+                bullet.update(dt)
+            else:
+                self.bullet_pool.append(bullet)
 
-    def shoot_alien_bullets(self, player, dt):
+        # Clean up inactive bullets
+        self.bullets = [b for b in self.bullets if b.active]
+
+        # Check if alien is defeated
+        if self.health <= 0:
+            self.active = False
+
+    def shoot_bullet(self, bullet_type, target_pos, color):
+        """Shoot a bullet toward target position"""
+        if not self.active:
+            return None
+
+        direction = (target_pos - self.pos).normalize()
+
+        # Reuse bullet from pool or create new one
+        if self.bullet_pool:
+            bullet = self.bullet_pool.pop()
+            bullet.reactivate(self.pos.x, self.pos.y, direction)
+        else:
+            shape = random.choice(self.shape_options)
+            bullet = Bullet(
+                self.pos.x, self.pos.y,
+                direction.x * BULLET_SPEED,
+                direction.y * BULLET_SPEED,
+                shape,
+                color
+            )
+
+        self.bullets.append(bullet)
+        return bullet
+
+    def shoot_at_player(self, player, dt):
+        """Conditional shooting at player"""
+        if not self.active or not player:
+            return
+
         curr_time = pygame.time.get_ticks()
-        if curr_time - self.prev_time >= 500:  # Original cooldown
-            self.shoot_bullet(None, player.pos, (255, 100, 255))
+        distance_to_player = (player.pos - self.pos).length()
+
+        if (curr_time - self.prev_time >= self.shoot_cooldown and
+                distance_to_player < self.detection_range):
+            self.shoot_bullet(None, player.pos, ALIEN_TYPES.get(self.name, RED))
             self.prev_time = curr_time
+
+    def draw_health_bar(self, surface):
+        """Draw health bar only if alien is active"""
+        if not self.active:
+            return
+
+        bar_width = self.width
+        bar_height = 8
+        bar_x = self.offset_pos.x - self.width / 2
+        bar_y = self.offset_pos.y - self.height / 2 - 15
+
+        # Background
+        pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
+
+        # Health level
+        health_width = (self.health / ALIEN_MAX_HEALTH) * bar_width
+        pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
+
+        # Border
+        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
+
+    def draw(self, surface, image=None):
+        """Draw alien only if active"""
+        if not self.active:
+            return
+
+        if image:
+            # Draw using image if provided
+            alien_rect = image.get_rect(center=self.offset_pos)
+            surface.blit(image, alien_rect)
+        else:
+            # Fallback rectangle drawing
+            pygame.draw.rect(
+                surface,
+                ALIEN_TYPES.get(self.name, RED),
+                (self.offset_pos.x - self.width / 2,
+                 self.offset_pos.y - self.height / 2,
+                 self.width, self.height)
+            )
+
+        self.draw_health_bar(surface)
