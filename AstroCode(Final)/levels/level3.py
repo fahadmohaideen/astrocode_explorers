@@ -29,12 +29,11 @@ class Level3(Level2):
 
     def update(self, dt, keys):
         super().update(dt, keys)
-        for alien in self.var_dict.keys():
-            if self.var_dict[alien][1]:
-                self.var_dict[alien][1].shoot_alien_bullets(self.player, dt)
 
         for alien in self.aliens:
-            alien.update_bullets(self.player, 0, dt)
+            if alien.active:
+                alien.shoot_at_player(self.player, dt)
+                alien.update_bullets(self.player, 0, dt)
 
     """def handle_events(self, event, mouse_pos):
         if event.type == pygame.MOUSEBUTTONDOWN:

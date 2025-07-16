@@ -33,7 +33,7 @@ class Level:
         self.target = pygame.Rect(60, 160, 60, 60)
         self.player_size = 50
         self.player_pos = [
-            self.battlefield.centerx + 200,
+            self.battlefield.centerx + 250,
             self.battlefield.bottom - self.player_size - 5
         ]
         self.player_angle = 0
@@ -496,13 +496,9 @@ class Level:
         for cmd in cmd_list:
             if cmd.is_loop():
                 for _ in range(cmd.iterations):
-                    #self.command_queue[:0] = cmd.nested_commands
-                    #self.update_commands(dt)
                     yield from self.execute_commands(cmd.nested_commands, cmd)
             elif cmd.is_conditional():
-                if self.var_dict[cmd.condition_var][0]:
-                    #self.command_queue[:0] = cmd.nested_commands
-                    #self.update_commands(dt)
+                 if self.var_dict[cmd.condition_var][0]:
                     yield from self.execute_commands(cmd.nested_commands, cmd)
             elif cmd.cmd_type == "while_loop":
                 while True:
@@ -512,52 +508,52 @@ class Level:
                     dx = 50 * math.sin(math.radians(self.player.angle))
                     dy = -50 * math.cos(math.radians(self.player.angle))
                     self.player.pos += pygame.Vector2(dx, dy)
-
-                    """self.player.x = max(self.battlefield.left,
-                                        min(self.player.x, self.battlefield.right - self.player.width))
-                    self.player.y = max(self.battlefield.top,
-                                        min(self.player.y, self.battlefield.bottom - self.player.height))"""
                 elif cmd.cmd_type == "move_left":
-                    #self.player.angle = (self.player.angle - 90) % 360
                     self.player.pos -= pygame.Vector2(80, 0)
-
                 elif cmd.cmd_type == "move_down":
-                    #dx = 20 * math.sin(math.radians(self.player.angle))
-                    #dy = -20 * math.cos(math.radians(self.player.angle))
                     self.player.pos += pygame.Vector2(0, 80)
-
-                    """self.player.x = max(self.battlefield.left,
-                                        min(self.player.x, self.battlefield.right - self.player.width))
-                    self.player.y = max(self.battlefield.top,
-                                        min(self.player.y, self.battlefield.bottom - self.player.height))"""
-
                 elif cmd.cmd_type == "move_right":
-                    #self.player.angle = (self.player.angle + 90) % 360
                     self.player.pos += pygame.Vector2(80, 0)
-
                 elif cmd.cmd_type == "shoot":
-                    #if self.current_approaching_alien_bullet_shape != self.current_approaching_alien_bullet_shape_temp:
-                    bullet_type = cmd.shoot_bullet_type
-                    color = ALIEN_TYPES["Alien" + " " + bullet_type]
-                    self.player.shoot_bullet(bullet_type=bullet_type, alien_pos=self.curr_nearest_alien.pos, color=color)
+                    if not self.curr_nearest_alien or not self.curr_nearest_alien.active:
+                        self._update_nearest_alien()
 
-                    """if parent_cmd:
-                        if parent_cmd.is_conditional():
-                            alien = self.var_dict[parent_cmd.condition_var][1]
-                            bullet_type = cmd.shoot_bullet_type
-                            color = ALIEN_TYPES[parent_cmd.condition_var]
-                            #print(color)
-                            self.player.shoot_bullet(bullet_type=bullet_type, alien_pos=alien.pos, color=color)"""
-
-
-                    #self.current_approaching_alien_bullet_shape_temp = self.current_approaching_alien_bullet_shape
-
+                    if self.curr_nearest_alien:
+                        bullet_type = cmd.shoot_bullet_type
+                        color = ALIEN_TYPES.get(f"Alien {bullet_type}", ORANGE)
+                        self.player.shoot_bullet(
+                            bullet_type=bullet_type,
+                            alien_pos=self.curr_nearest_alien.pos,
+                            color=color
+                        )
+                    else:
+                        print("No valid target to shoot at!")
                 yield
 
             #pygame.time.wait(step_delay)
                 #screen.fill(BLACK)
             #self.draw_all(screen, mouse_pos, event)
             #pygame.display.update()
+
+    def _update_nearest_alien(self):
+        self.curr_nearest_alien = None
+        min_dist = float('inf')
+
+        for alien in self.aliens:
+            if not hasattr(alien, 'active'):
+                alien.active = True
+
+            if not alien.active:
+                continue
+
+            dist = (alien.pos - self.player.pos).length()
+            if dist < min_dist:
+                min_dist = dist
+                self.curr_nearest_alien = alien
+
+        if min_dist > 1000:
+            self.curr_nearest_alien = None
+
 
     def add_to_main_code(self, cmd_list, cmd_rect, command_type, mouse_pos, i, parent_cmd):
         pos_in_area = (mouse_pos[0] - self.code_area.x, mouse_pos[1] - self.code_area.y)
