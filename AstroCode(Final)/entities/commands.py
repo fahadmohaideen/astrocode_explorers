@@ -6,7 +6,7 @@ import copy
 from core.constants import (
     WHITE, BLACK, CYAN, ORANGE, BLUE, GREEN, FOR_LOOP_COLOR, CODE_FONT_SIZE, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP
 )
-from entities.bullet_shapes import Circle, Square, Triangle
+
 
 class Command:
     def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None,

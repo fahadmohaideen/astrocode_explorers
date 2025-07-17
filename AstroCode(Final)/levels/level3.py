@@ -1,6 +1,5 @@
 # Level 3 logic
 from levels.level2 import Level2
-from entities.bullet_shapes import Circle, Square, Triangle
 from core.constants import WHITE, FOR_LOOP_COLOR
 import pygame
 import copy
