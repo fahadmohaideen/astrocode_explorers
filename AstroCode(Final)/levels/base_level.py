@@ -17,7 +17,6 @@ from entities.player import Player
 from entities.alien import Alien
 from entities.bullet import Bullet
 from entities.commands import Command
-from entities.bullet_shapes import Circle, Square, Triangle
 
 from core.constants import CODE_FONT_SIZE
 

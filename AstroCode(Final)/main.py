@@ -102,6 +102,7 @@ while running:
 
     elif current_state == STATE_LEVEL1:
         if level1.game_view:
+
             level1.draw_game(screen, mouse_pos, event)
         if level1.code_editor:
             level1.draw_code_blocks(screen)
@@ -156,7 +157,7 @@ while running:
         level3.update(dt, keys)
 
     elif current_state == STATE_LEVEL4:
-        #level4.var_dict["key_press"] = None
+        #levelsss4.var_dict["key_press"] = None
         if level4.game_view:
             level4.draw_game(screen, mouse_pos, event)
             #if -20 < (level4.alien.y + level4.alien.height / 2) - (level4.player.y + level4.player.height / 2) < 20:

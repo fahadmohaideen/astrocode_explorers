@@ -27,6 +27,7 @@ class Alien(Player):
         self.active = True
         self.health = ALIEN_MAX_HEALTH
         self.name = name
+        self.image = None
         self.shape_options = ["circle", "square", "triangle"]
         self.prev_time = 0
         self.bullets = []
@@ -46,7 +47,7 @@ class Alien(Player):
         if self.health <= 0:
             self.active = False
 
-    def shoot_bullet(self, bullet_type, target_pos, color):
+    def shoot_bullet(self, target_pos, color):
         if not self.active:
             return None
 
@@ -56,13 +57,12 @@ class Alien(Player):
             bullet = self.bullet_pool.pop()
             bullet.reactivate(self.pos.x, self.pos.y, direction)
         else:
-            shape = random.choice(self.shape_options)
             bullet = Bullet(
                 self.pos.x, self.pos.y,
                 direction.x * BULLET_SPEED,
                 direction.y * BULLET_SPEED,
-                shape,
-                color
+                bullet_type=self.name,
+                color=color
             )
 
         self.bullets.append(bullet)
@@ -77,7 +77,7 @@ class Alien(Player):
 
         if (curr_time - self.prev_time >= self.shoot_cooldown and
                 distance_to_player < self.detection_range):
-            self.shoot_bullet(None, player.pos, ALIEN_TYPES.get(self.name, RED))
+            self.shoot_bullet(player.pos, ALIEN_TYPES.get(self.name, RED))
             self.prev_time = curr_time
 
     def draw_health_bar(self, surface):
@@ -99,9 +99,11 @@ class Alien(Player):
         if not self.active:
             return
 
-        if image:
-            alien_rect = image.get_rect(center=self.offset_pos)
-            surface.blit(image, alien_rect)
+        draw_image = image if image is not None else self.image
+
+        if draw_image:
+            alien_rect = draw_image.get_rect(center=self.offset_pos)
+            surface.blit(draw_image, alien_rect)
         else:
             pygame.draw.rect(
                 surface,
