@@ -22,38 +22,39 @@ class Bullet:
         self.radius = radius
         self.active = True
         self.bullet_type = bullet_type
-        self.color = color
+        self.color = color or RED
         self.image = None
 
-        try:
-            if bullet_type == "Alien Type A":
-                img_path = os.path.join("levels", "assets", "bullet_red.png")
-                self.image = pygame.image.load(img_path).convert_alpha()
-            elif bullet_type == "Alien Type B":
-                img_path = os.path.join("levels", "assets", "bullet_green.png")
-                self.image = pygame.image.load(img_path).convert_alpha()
-            elif bullet_type == "Alien Type C":
-                img_path = os.path.join("levels", "assets", "bullet_blue.png")
-                self.image = pygame.image.load(img_path).convert_alpha()
+        type_to_image = {
+            "Alien Type A": "bullet_red.png",
+            "Alien Type B": "bullet_green.png",
+            "Alien Type C": "bullet_blue.png"
+        }
 
-            if self.image:
-                self.image = pygame.transform.scale(self.image, (radius * 2, radius * 2))
-        except Exception as e:
-            print(f"Error loading bullet image: {e}")
-            self.image = None
+        if bullet_type in type_to_image:
+            try:
+                img_path = os.path.join("levels", "assets", type_to_image[bullet_type])
+                if os.path.exists(img_path):
+                    self.image = pygame.image.load(img_path).convert_alpha()
+                    self.image = pygame.transform.scale(self.image, (radius * 2, radius * 2))
+                    print(f"Successfully loaded image for {bullet_type}")
+                else:
+                    print(f"Image not found at: {os.path.abspath(img_path)}")
+            except Exception as e:
+                print(f"Error loading {bullet_type} image: {e}")
 
     def draw(self, surface, camera_offset):
-        if not self.active or not self.image:
+        if not self.active:
             return
 
         adjusted_pos = self.pos - camera_offset
-        surface.blit(self.image, (adjusted_pos.x - self.radius, adjusted_pos.y - self.radius))
 
-    def _draw_circle(self, surface, color, camera_offset):
-        adjusted_pos = self.pos - camera_offset
-        bullet_surface = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(bullet_surface, color, (self.radius, self.radius), self.radius)
-        surface.blit(bullet_surface, (adjusted_pos.x - self.radius, adjusted_pos.y - self.radius))
+        if self.image:
+            surface.blit(self.image, (adjusted_pos.x - self.radius, adjusted_pos.y - self.radius))
+        else:
+            pygame.draw.circle(surface, self.color,
+                               (int(adjusted_pos.x), int(adjusted_pos.y)),
+                               self.radius)
 
     def reactivate(self, x, y, direction):
         self.x = x
@@ -62,4 +63,3 @@ class Bullet:
         self.dx = direction.x * BULLET_SPEED
         self.dy = direction.y * BULLET_SPEED
         self.active = True
-
