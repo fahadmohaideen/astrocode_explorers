@@ -19,10 +19,11 @@ class Level2(Level):
                             "Alien Type A": [False, None, None],
                             "Alien Type B": [False, None, None],
                             "Alien Type C": [False, None, None]})
+        # In Level2.__init__():
         self.value_options = [
-            "Type A",
-            "Type B",
-            "Type C"
+            "Alien Type A",  
+            "Alien Type B",  
+            "Alien Type C"  
         ]
         self.current_value_index = -1
         self.shoot_index = -1
@@ -64,10 +65,10 @@ class Level2(Level):
                 self.var_dict["Alien near"][0] = True
                 self.curr_nearest_alien = alien
 
-        for alien in self.aliens:
-            self.player.update_bullets(alien, self.level_id, dt)
+        active_aliens = [alien for alien in self.aliens if alien.active]
+        self.player.update_bullets(active_aliens, self.level_id, dt)
 
-        super().update(dt)
+
 
     def _process_command_clicks_recursive(self, mouse_pos, commands_list):
         for cmd in commands_list:
