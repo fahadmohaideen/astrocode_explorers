@@ -69,73 +69,51 @@ class Player:
     def _init_bullet(self, bullet, x, y, angle, width, height):
         """Initializes properties of a bullet before it's fired."""
         angle_rad = math.radians(angle)
-        center_x = x
-        center_y = y
         gun_length = height * 1.5
 
-        bullet.pos.x = center_x + gun_length * math.sin(angle_rad)
-        bullet.pos.y = center_y - gun_length * math.cos(angle_rad)
-        bullet.dx = math.sin(angle_rad)
-        bullet.dy = -math.cos(angle_rad)
-        bullet.radius = BULLET_RADIUS
+        bullet.pos.x = x + gun_length * math.sin(angle_rad)
+        bullet.pos.y = y - gun_length * math.cos(angle_rad)
+        bullet.dx = math.sin(angle_rad) * BULLET_SPEED
+        bullet.dy = -math.cos(angle_rad) * BULLET_SPEED
         bullet.active = True
 
     def shoot_bullet(self, bullet_type, alien_pos, color):
-        bullet_vec = self.pos - alien_pos
-        vertical_vec = pygame.Vector2(0, 1)
-        self.angle = vertical_vec.angle_to(bullet_vec)
+        # Calculate direction to alien
+        direction = (alien_pos - self.pos).normalize()
+        self.angle = pygame.Vector2(0, -1).angle_to(direction)
 
-        # Reuse inactive bullets first
-        for bullet in self.bullet_pool:
-            if not bullet.active:
-                self._init_bullet(bullet, self.pos.x, self.pos.y, self.angle, self.width, self.height)
-                return
+        # Create new bullet immediately
+        bullet = Bullet(
+            x=self.pos.x,
+            y=self.pos.y,
+            dx=direction.x * BULLET_SPEED,
+            dy=direction.y * BULLET_SPEED,
+            bullet_type=bullet_type,
+            color=color
+        )
+        self.bullets.append(bullet)
+        return bullet
 
-        # Create new bullet if pool is empty
-        if len(self.bullets) < self.max_bullets:
-            bullet = Bullet(bullet_type=bullet_type, color=color)
-            self._init_bullet(bullet, self.pos.x, self.pos.y, self.angle, self.width, self.height)
-            self.bullets.append(bullet)
-
-    def update_bullets(self, target, level_id, dt):
-        self.damage_dealt = False
-        #target = self.target  # Cache target reference
-        prev_bullet = None
-
-        for bullet in self.bullets:
+    def update_bullets(self, targets, level_id, dt):
+        for bullet in self.bullets[:]:  # Iterate over copy
             if not bullet.active:
                 continue
 
             # Update position
-            if not prev_bullet:
-                bullet.pos.x += bullet.dx * dt * BULLET_SPEED
-                bullet.pos.y += bullet.dy * dt * BULLET_SPEED
-            else:
-                if prev_bullet.pos.distance_to(bullet.pos) > 40:
-                    bullet.pos.x += bullet.dx * dt * BULLET_SPEED
-                    bullet.pos.y += bullet.dy * dt * BULLET_SPEED
-            #self.current_bullet = bullet
+            bullet.pos.x += bullet.dx * dt
+            bullet.pos.y += bullet.dy * dt
 
-            # Boundary check
-            """if not (0 <= bullet.x < WIDTH and 0 <= bullet.y < HEIGHT):
+            # Check if bullet is off-screen
+            if not (0 <= bullet.pos.x <= WIDTH and 0 <= bullet.pos.y <= HEIGHT):
                 bullet.active = False
-                continue"""
+                continue
 
-            # Fast AABB collision check
-            if (target.pos.x - BULLET_RADIUS - target.width/2 <= bullet.pos.x <= target.pos.x + target.width/2 + BULLET_RADIUS and
-                    target.pos.y - BULLET_RADIUS - target.height/2 <= bullet.pos.y <= target.pos.y + target.height/2 + BULLET_RADIUS):
-                bullet.active = False
-                print("damage")
-                self.damage_dealt = True
+            # Check collision with all targets
+            for target in targets:
+                if target.active and bullet.pos.distance_to(target.pos) < target.width / 2 + bullet.radius:
+                    bullet.active = False
+                    target.health -= DAMAGE_PER_HIT
+                    break  # Stop checking other targets after first hit
 
-            prev_bullet = bullet
 
-        # Remove inactive bullets (do this less frequently)
-        if random.random() < 0.1:  # Only clean up 10% of frames
-            self.bullets = [b for b in self.bullets if b.active]
-            self.bullet_pool = [b for b in self.bullets if not b.active]
-        self.bullets = [b for b in self.bullets if b.active]
-
-        if self.damage_dealt:
-            target.health = max(0, target.health - DAMAGE_PER_HIT)
 

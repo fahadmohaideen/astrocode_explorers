@@ -21,10 +21,11 @@ class Level2(Level):
                             "Alien Type A": [False, None, None],
                             "Alien Type B": [False, None, None],
                             "Alien Type C": [False, None, None]})
+        # In Level2.__init__():
         self.value_options = [
-            "Type A",  # Radius 8 for a small circle
-            "Type B",  # Size 16 for a small square
-            "Type C"  # Size 16 for a small triangle (approximate height)
+            "Alien Type A",  # Changed from "Type A"
+            "Alien Type B",  # Changed from "Type B"
+            "Alien Type C"  # Changed from "Type C"
         ]
         self.current_value_index = -1
         self.shoot_index = -1
@@ -72,10 +73,11 @@ class Level2(Level):
                 self.var_dict["Alien near"][0] = True
                 self.curr_nearest_alien = alien  # Track the nearest one
 
-        for alien in self.aliens:
-            self.player.update_bullets(alien, self.level_id, dt)
+        # Update bullets against all active aliens
+        active_aliens = [alien for alien in self.aliens if alien.active]
+        self.player.update_bullets(active_aliens, self.level_id, dt)
 
-        super().update(dt)
+
 
     def _process_command_clicks_recursive(self, mouse_pos, commands_list):
         """
@@ -108,6 +110,7 @@ class Level2(Level):
                         cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
                         return True  # Click handled"""
 
+                # Handle 'Shoot' Command clicks (specific to Level 3)
                 # Handle 'Shoot' Command clicks (specific to Level 3)
                 elif cmd.cmd_type == "shoot":
                     if cmd.shoot_bullet_type_box and cmd.shoot_bullet_type_box.collidepoint(mouse_pos):

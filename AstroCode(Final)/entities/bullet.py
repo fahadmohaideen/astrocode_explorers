@@ -11,12 +11,9 @@ from core.constants import (
 )
 
 
+# In bullet.py
 class Bullet:
-    __slots__ = ('x', 'y', 'dx', 'dy', 'radius', 'active', 'bullet_type', 'color', 'pos', 'image')
-
-    def __init__(self, x=0, y=0, dx=0, dy=0, bullet_type="", color=None, radius=BULLET_RADIUS):
-        self.x = x
-        self.y = y
+    def __init__(self, x=0, y=0, dx=0, dy=0, bullet_type="", color=None, radius=12):
         self.pos = pygame.Vector2(x, y)
         self.dx = dx
         self.dy = dy
@@ -25,39 +22,63 @@ class Bullet:
         self.bullet_type = bullet_type
         self.color = color or RED
         self.image = None
+        self._load_bullet_image()
+        # Pre-render the image to optimize drawing
+        if self.image:
+            self.rendered_image = self._create_optimized_surface()
 
-        # Map bullet types to image files
-        type_to_image = {
-            "Alien Type A": "bullet_red.png",
-            "Alien Type B": "bullet_green.png",
-            "Alien Type C": "bullet_blue.png"
+    def _load_bullet_image(self):
+        if not self.bullet_type:
+            return
+
+        # Define desired display sizes for each bullet type
+        bullet_sizes = {
+            "Alien Type A": 50,  # pixels
+            "Alien Type B": 50,
+            "Alien Type C": 50,
         }
 
-        if bullet_type in type_to_image:
+        bullet_images = {
+            "Alien Type A": "bullet_red.png",
+            "Alien Type B": "bullet_green.png",
+            "Alien Type C": "bullet_blue.png",
+            "Player": "bullet_orange.png"
+        }
+
+        if self.bullet_type in bullet_images:
             try:
-                img_path = os.path.join("levels", "assets", type_to_image[bullet_type])
+                img_path = os.path.join(ASSETS_PATH, bullet_images[self.bullet_type])
                 if os.path.exists(img_path):
-                    self.image = pygame.image.load(img_path).convert_alpha()
-                    self.image = pygame.transform.scale(self.image, (radius * 2, radius * 2))
-                    print(f"Successfully loaded image for {bullet_type}")
-                else:
-                    print(f"Image not found at: {os.path.abspath(img_path)}")
+                    # Load original image
+                    original_img = pygame.image.load(img_path).convert_alpha()
+
+                    # Scale to desired size
+                    target_size = bullet_sizes[self.bullet_type]
+                    self.image = pygame.transform.scale(
+                        original_img,
+                        (target_size, target_size)
+                    )
+
+                    # Update collision radius to match visual size
+                    self.radius = target_size // 2
             except Exception as e:
-                print(f"Error loading {bullet_type} image: {e}")
+                print(f"Error loading bullet image: {e}")
+
+    def _create_optimized_surface(self):
+        """Create a pre-rendered surface to prevent streaks"""
+        surf = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
+        surf.blit(self.image, (0, 0))
+        return surf
 
     def draw(self, surface, camera_offset):
         if not self.active:
             return
 
-        adjusted_pos = self.pos - camera_offset
-
-        # Draw image if available, otherwise draw colored circle
-        if self.image:
-            surface.blit(self.image, (adjusted_pos.x - self.radius, adjusted_pos.y - self.radius))
+        pos = self.pos - camera_offset
+        if hasattr(self, 'rendered_image'):
+            surface.blit(self.rendered_image, (pos.x - self.radius, pos.y - self.radius))
         else:
-            pygame.draw.circle(surface, self.color,
-                               (int(adjusted_pos.x), int(adjusted_pos.y)),
-                               self.radius)
+            pygame.draw.circle(surface, self.color, (int(pos.x), int(pos.y)), self.radius)
 
     def reactivate(self, x, y, direction):
         """Reuse an existing bullet"""

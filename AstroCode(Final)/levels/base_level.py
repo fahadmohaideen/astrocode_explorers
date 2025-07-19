@@ -69,7 +69,6 @@ class Level:
         self.player = Player(self.player_pos[0], self.player_pos[1], self.player_size, self.player_size,
                              self.player_angle)
         self.player.speed = 300
-        #self.alien = Alien(8000, 8000, "Alien Type A")
         self.aliens = []
         self.current_approaching_alien_bullet_shape = None  # Reset each frame
         self.current_approaching_alien_bullet_shape_temp = None
@@ -253,64 +252,6 @@ class Level:
                              (x - self.camera_offset.x % self.TILE_SIZE,
                               y - self.camera_offset.y % self.TILE_SIZE))
 
-    def update(self, dt):
-        pass
-        """Call this every frame from your main game loop"""
-        #self.player.update_bullets(self.alien, self.level_id, dt)
-        """"if self.level_id >= 3:
-            self.alien.update_bullets(self.player, self.level_id, dt)
-        for bullet in self.alien.bullets:
-            if bullet.active:
-                # Calculate distance from bullet to player's center
-                bullet_center_x = bullet.x
-                bullet_center_y = bullet.y
-                player_center_x = self.player.x + self.player.width // 2
-                player_center_y = self.player.y + self.player.height // 2
-
-                dist = math.sqrt((bullet_center_x - player_center_x) ** 2 + (bullet_center_y - player_center_y) ** 2)
-
-                if dist < PLAYER_AWARENESS_RANGE and dist < closest_dist:
-                    closest_dist = dist
-                    self.current_approaching_alien_bullet_shape = bullet.shape
-                    self.var_dict["shape"] = self.current_approaching_alien_bullet_shape
-
-        player_bullets_after_b2b = []
-        alien_bullets_after_b2b = []
-
-        for p_bullet in self.player.bullets:
-            if not p_bullet.active:
-                self.player.bullet_pool.append(p_bullet)  # Recycle inactive player bullets
-                continue
-
-            hit_alien_bullet = False
-            for a_bullet in self.alien.bullets:
-                if not a_bullet.active:
-                    # Already inactive, ensure it's in pool (should be handled by alien.update_bullets)
-                    continue
-
-                # Check for collision between player bullet and alien bullet
-                if self._check_bullet_bullet_collision(p_bullet, a_bullet):
-                    p_bullet.active = False  # Player bullet is destroyed
-                    a_bullet.active = False  # Alien bullet is destroyed
-                    self.player.bullet_pool.append(p_bullet)  # Recycle player bullet
-                    self.alien.bullet_pool.append(a_bullet)  # Recycle alien bullet
-                    if self.bullets_shape_match[a_bullet.shape] == p_bullet.shape:
-                        self.alien.health= max(0, self.alien.health - DAMAGE_PER_HIT)  # Decrease player health
-                    else:
-                        self.player.health = max(0, self.player.health - DAMAGE_PER_HIT)
-                    hit_alien_bullet = True  # Mark that this player bullet hit something
-                    break  # This player bullet hit an alien bullet, no need to check other alien bullets
-
-            if not hit_alien_bullet and p_bullet.active:  # If player bullet didn't hit an alien bullet and is still active
-                player_bullets_after_b2b.append(p_bullet)
-
-        # Now, update the actual lists, ensuring no duplicates or already inactive bullets are processed
-        # This part needs to be careful to not re-add bullets that were just recycled.
-        # The simplest way is to rebuild the lists from active bullets.
-        self.player.bullets = [b for b in player_bullets_after_b2b if b.active]
-        self.alien.bullets = [b for b in self.alien.bullets if b.active]""" # Re-filter alien bullets too
-
-        #self.update_commands(dt)
 
     def update_commands(self, dt):
         if not self.command_queue and not self.current_command:
@@ -349,13 +290,11 @@ class Level:
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def draw_bullets(self, surface):
-        if self.player.bullets:
-            for bullet in self.player.bullets:
-                bullet.draw(surface, self.camera_offset)
+        for bullet in self.player.bullets:
+            bullet.draw(surface, self.camera_offset)
         for alien in self.aliens:
-            if alien.bullets:
-                for bullet in alien.bullets:
-                    bullet.draw(surface, self.camera_offset)
+            for bullet in alien.bullets:
+                bullet.draw(surface, self.camera_offset)
         """if self.alien.bullets:
             for bullet in self.alien.bullets:
                 bullet.draw(screen)"""
@@ -573,22 +512,18 @@ class Level:
                 elif cmd.cmd_type == "move_right":
                     self.player.pos += pygame.Vector2(80, 0)
                 elif cmd.cmd_type == "shoot":
-                    # Find nearest alien if none is currently targeted
-                    if not self.curr_nearest_alien or not self.curr_nearest_alien.active:
+                    if not self.curr_nearest_alien:
                         self._update_nearest_alien()
 
-                    # Only shoot if there's a valid target
                     if self.curr_nearest_alien:
                         bullet_type = cmd.shoot_bullet_type
-                        color = ALIEN_TYPES.get(f"Alien {bullet_type}", ORANGE)  # Fallback color
+                        color = ALIEN_TYPES.get(bullet_type, ORANGE)
                         self.player.shoot_bullet(
                             bullet_type=bullet_type,
                             alien_pos=self.curr_nearest_alien.pos,
                             color=color
                         )
-                    else:
-                        print("No valid target to shoot at!")
-                yield
+                    yield  # Important for command sequencing
 
             #pygame.time.wait(step_delay)
                 #screen.fill(BLACK)
@@ -821,7 +756,4 @@ class Level:
         self.draw_bullets(screen)
         self.draw_minimap()
         self.draw_alien_dir()
-        #self.draw_popups(screen, mouse_pos, event)
 
-
-# --- Level Specific Implementations ---
