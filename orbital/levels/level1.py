@@ -1,6 +1,6 @@
 from levels.base_level import Level
 import pygame
-from orbital.entities.alien import Alien
+from entities.alien import Alien
 
 pygame.init()
 pygame.font.init()
