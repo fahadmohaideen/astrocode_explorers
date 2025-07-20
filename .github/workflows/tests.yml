@@ -2,9 +2,9 @@ name: Run Tests
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ '**' ]  # This will match all branches
   pull_request:
-    branches: [ main, master ]
+    branches: [ '**' ]  # This will match all branches
   workflow_dispatch:
 
 jobs:
