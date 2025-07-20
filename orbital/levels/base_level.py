@@ -129,7 +129,6 @@ class Level:
             self.code_blocks.append(Command(cmd_type))
 
     def update_camera(self):
-        """Update camera position to follow hero"""
         if self.camera_active:
             self.camera_offset.x = self.player.pos.x - self.player_pos[0]
             self.camera_offset.y = self.player.pos.y - self.player_pos[1]
@@ -219,6 +218,40 @@ class Level:
                             bullet2.radius * 2, bullet2.radius * 2)
 
         return rect1.colliderect(rect2)
+        
+    """def _check_bullet_collisions(self):
+        player_bullets = self.player.bullets.copy()
+        
+        for alien in self.aliens:
+            alien_bullets = alien.bullets.copy()
+            
+            for p_bullet in player_bullets:
+                if not p_bullet.active:
+                    continue
+                    
+                for a_bullet in alien_bullets:
+                    if not a_bullet.active:
+                        continue
+
+                    if self._check_bullet_bullet_collision(p_bullet, a_bullet):
+                        if self.bullets_shape_match.get(a_bullet.shape) == p_bullet.shape:
+                            alien.health = max(0, alien.health - DAMAGE_PER_HIT)
+                            
+                        p_bullet.active = False
+                        a_bullet.active = False
+                        
+                        self.player.bullet_pool.append(p_bullet)
+                        alien.bullet_pool.append(a_bullet)
+                        break
+                        
+    def check_level_completion(self):
+        if not hasattr(self, 'level_completed'):
+            self.level_completed = False
+            
+        self.aliens = [alien for alien in self.aliens if alien.health > 0]
+        
+        if not self.aliens and not self.level_completed:
+            self.level_completed = True"""
 
     def draw_terrain(self, surface):
         for x in range(-self.TILE_SIZE, WIDTH + self.TILE_SIZE, self.TILE_SIZE):
@@ -227,9 +260,29 @@ class Level:
                              (x - self.camera_offset.x % self.TILE_SIZE,
                               y - self.camera_offset.y % self.TILE_SIZE))
 
+    def _handle_alien_bullets(self, dt):
+        for alien in self.aliens:
+            alien.update_bullets(self.player, self.level_id, dt)
+    
     def update(self, dt):
-        pass
-        #self.player.update_bullets(self.alien, self.level_id, dt)
+        spawn_area_width = WIDTH + 1000
+        spawn_area_height = HEIGHT + 1000
+        
+        for alien in self.aliens:
+            alien.move_randomly(dt, spawn_area_width, spawn_area_height, self.player.pos)
+            
+            alien.update_bullets(self.player, self.level_id, dt)
+            
+        self._handle_alien_bullets(dt)
+        
+        target = self.aliens[0] if self.aliens else None
+        self.player.update_bullets(target, self.level_id, dt)
+        
+        self.update_camera()
+        
+        self.update_commands(dt)
+        
+        self.check_level_completion()
         """"if self.level_id >= 3:
             self.alien.update_bullets(self.player, self.level_id, dt)
         for bullet in self.alien.bullets:
@@ -275,7 +328,7 @@ class Level:
                 player_bullets_after_b2b.append(p_bullet)
 
         self.player.bullets = [b for b in player_bullets_after_b2b if b.active]
-        self.alien.bullets = [b for b in self.alien.bullets if b.active]""" # Re-filter alien bullets too
+        self.alien.bullets = [b for b in self.alien.bullets if b.active]"""
 
         #self.update_commands(dt)
 
@@ -472,7 +525,6 @@ class Level:
                     else:
                         Cmd.editing_text = ""
 
-        # Handle run button
         if self.run_button.is_clicked(mouse_pos, event) and event.button == 1:
             """if not self.command_queue:
                 self.command_queue = self.main_code.copy()

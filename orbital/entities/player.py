@@ -114,25 +114,26 @@ class Player:
                 else:
                     if prev_bullet != bullet:
                         bullet.active = False
-            #self.current_bullet = bullet
 
-            """if not (0 <= bullet.x < WIDTH and 0 <= bullet.y < HEIGHT):
-                bullet.active = False
-                continue"""
-
-            if (target.pos.x - BULLET_RADIUS - target.width/2 <= bullet.pos.x <= target.pos.x + target.width/2 + BULLET_RADIUS and
+            if target is not None:
+                if (target.pos.x - BULLET_RADIUS - target.width/2 <= bullet.pos.x <= target.pos.x + target.width/2 + BULLET_RADIUS and
                     target.pos.y - BULLET_RADIUS - target.height/2 <= bullet.pos.y <= target.pos.y + target.height/2 + BULLET_RADIUS):
-                bullet.active = False
-                self.damage_dealt = True
+                    
+                    hit_direction = pygame.Vector2(target.pos) - pygame.Vector2(bullet.pos)
+                    
+                    if hasattr(target, 'apply_pushback'):
+                        target.apply_pushback(hit_direction)
+                    
+                    bullet.active = False
+                    
+                    target.health = max(0, target.health - DAMAGE_PER_HIT)
+                    self.damage_dealt = True
                 self.bullet_index += 1
-
+            
             prev_bullet = bullet
 
         if random.random() < 0.1:
             self.bullets = [b for b in self.bullets if b.active]
             self.bullet_pool = [b for b in self.bullets if not b.active]
         self.bullets = [b for b in self.bullets if b.active]
-
-        if self.damage_dealt:
-            target.health = max(0, target.health - DAMAGE_PER_HIT)
-
+    
