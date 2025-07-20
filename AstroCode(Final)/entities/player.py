@@ -71,13 +71,12 @@ class Player:
         bullet.dy = -math.cos(angle_rad) * BULLET_SPEED
         bullet.active = True
 
-    def shoot_bullet(self, bullet_type, alien_pos, color):
-        direction = (alien_pos - self.pos).normalize()
-        self.angle = pygame.Vector2(0, -1).angle_to(direction)
+    def shoot_bullet(self, bullet_type, direction, color):
+        spawn_pos = self.pos.copy()
 
         bullet = Bullet(
-            x=self.pos.x,
-            y=self.pos.y,
+            x=spawn_pos.x,
+            y=spawn_pos.y,
             dx=direction.x * BULLET_SPEED,
             dy=direction.y * BULLET_SPEED,
             bullet_type=bullet_type,
@@ -86,7 +85,7 @@ class Player:
         self.bullets.append(bullet)
         return bullet
 
-    def update_bullets(self, targets, level_id, dt):
+    def update_bullets(self, targets, level_id, dt, camera_offset=None):
         for bullet in self.bullets[:]:
             if not bullet.active:
                 continue
@@ -94,15 +93,33 @@ class Player:
             bullet.pos.x += bullet.dx * dt
             bullet.pos.y += bullet.dy * dt
 
-            if not (0 <= bullet.pos.x <= WIDTH and 0 <= bullet.pos.y <= HEIGHT):
+            player_to_bullet = bullet.pos - self.pos
+            if player_to_bullet.length() > 2000:
                 bullet.active = False
                 continue
 
-            for target in targets:
-                if target.active and bullet.pos.distance_to(target.pos) < target.width / 2 + bullet.radius:
+            for target in targets[:]:
+                if not target.active or target.health <= 0:
+                    continue
+                distance = bullet.pos.distance_to(target.pos)
+                collision_threshold = target.width / 2 + bullet.radius
+
+                if distance < collision_threshold:
+                    print(f"HIT! Bullet hit {target.name} at distance {distance:.2f}")
+                    print(f"Target health before: {target.health}")
+
                     bullet.active = False
                     target.health -= DAMAGE_PER_HIT
+
+                    print(f"Target health after: {target.health}")
+
+                    if target.health <= 0:
+                        target.active = False
+                        print(f"{target.name} destroyed!")
+
                     break
+
+        self.bullets = [bullet for bullet in self.bullets if bullet.active]
 
 
 

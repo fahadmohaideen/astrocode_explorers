@@ -81,15 +81,6 @@ class Level2(Level):
                         current_var = getattr(cmd, 'condition_var', None)
                         cmd.condition_var = self._cycle_value(current_var, self.var_dict)
 
-                    elif op_box.collidepoint(mouse_pos):
-                        current_op = getattr(cmd, 'condition_op', None)
-                        cmd.condition_op = self._cycle_value(current_op, self.op_dict)
-
-                    elif val_box.collidepoint(mouse_pos):
-                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
-                        cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
-                        return True
-
                 elif cmd.cmd_type == "shoot":
                     if cmd.shoot_bullet_type_box and cmd.shoot_bullet_type_box.collidepoint(mouse_pos):
                         self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
