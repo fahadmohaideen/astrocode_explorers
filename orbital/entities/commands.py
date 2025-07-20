@@ -10,7 +10,7 @@ from entities.bullet_shapes import Circle, Square, Triangle
 
 class Command:
     def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None,
-                 condition_op=None, condition_val=None, editing_condition_part=None, code_font=None, depth = 0, original_rect=None):
+                 condition_op=None, condition_val=None, editing_condition_part=None, code_font=None, depth = 0, original_rect=None, shoot_bullet_type="Type A"):
         self.cmd_type = cmd_type
         self.code_font = code_font
         self.iterations = iterations
@@ -21,7 +21,7 @@ class Command:
         self.condition_op = condition_op  # e.g. ">"
         self.condition_val = condition_val  # e.g. "50"
         self.editing_condition_part = editing_condition_part  # Tracks which box is being edited
-        self.shoot_bullet_type = "Type A"  # Stores the shape (Circle, Square, Triangle) for shoot target
+        self.shoot_bullet_type = shoot_bullet_type  # Stores the shape (Circle, Square, Triangle) for shoot target
         self.shoot_target_box_rect = None
         self.editing_text = ""
         self.depth = depth

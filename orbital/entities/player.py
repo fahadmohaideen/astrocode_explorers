@@ -11,7 +11,6 @@ from core.constants import (
 
 class Player:
     def __init__(self, x=0, y=0, width=0, height=0, angle=0, speed=0):
-        self.body_rect = None
         self.x = x
         self.y = y
         self.width = width
@@ -20,6 +19,8 @@ class Player:
         self.offset_pos = self.pos
         self.angle = angle  # Angle in degrees (0 = up, 90 = right, etc.)
         self.speed = speed
+        self.body_rect = pygame.Rect(self.offset_pos.x - self.width / 2, self.offset_pos.y - self.height / 2,
+                                     self.width, self.height)
         #self.body_rect = pygame.Rect(self.offset_pos.x, self.offset_pos.y, self.width, self.height)
         self.bullets = []  # List of active Bullet objects
         self.max_bullets = 50
@@ -27,6 +28,7 @@ class Player:
         self.damage_dealt = False  # Flag to indicate if this player's bullet hit something
         self.health = PLAYER_MAX_HEALTH
         self.last_hit_bullet_shape = None  # Stores the shape of the last bullet that hit this player
+        self.bullet_index = 0
 
     def draw_player(self, surface, img):
         """Draws the player (robot) on the given surface."""
@@ -82,8 +84,12 @@ class Player:
 
     def shoot_bullet(self, bullet_type, alien_pos, color):
         bullet_vec = self.pos - alien_pos
+        #bullet_vec = pygame.Vector2(bullet_vec.x, bullet_vec.y)
         vertical_vec = pygame.Vector2(0, 1)
-        self.angle = vertical_vec.angle_to(bullet_vec)
+        if bullet_type == "test":
+            self.angle = vertical_vec.angle_to(bullet_vec) if bullet_vec.x <= 0 else -1*vertical_vec.angle_to(bullet_vec)
+        else:
+            self.angle = vertical_vec.angle_to(bullet_vec)
 
         # Reuse inactive bullets first
         for bullet in self.bullet_pool:
@@ -115,7 +121,8 @@ class Player:
                     bullet.pos.x += bullet.dx * dt * BULLET_SPEED
                     bullet.pos.y += bullet.dy * dt * BULLET_SPEED
                 else:
-                    bullet.active = False
+                    if prev_bullet != bullet:
+                        bullet.active = False
             #self.current_bullet = bullet
 
             # Boundary check
@@ -127,8 +134,8 @@ class Player:
             if (target.pos.x - BULLET_RADIUS - target.width/2 <= bullet.pos.x <= target.pos.x + target.width/2 + BULLET_RADIUS and
                     target.pos.y - BULLET_RADIUS - target.height/2 <= bullet.pos.y <= target.pos.y + target.height/2 + BULLET_RADIUS):
                 bullet.active = False
-                print("damage")
                 self.damage_dealt = True
+                self.bullet_index += 1
 
             prev_bullet = bullet
 

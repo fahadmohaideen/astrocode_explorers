@@ -1,6 +1,6 @@
 # Game constants like screen size, colors, fonts
 import pygame
-from pygame.examples.grid import TILE_SIZE
+#from pygame.examples.grid import TILE_SIZE
 
 pygame.init()
 WIDTH, HEIGHT = 1000, 800
@@ -40,7 +40,7 @@ BULLET_RADIUS = 5
 TARGET_MAX_HEALTH = 200
 PLAYER_MAX_HEALTH = 200 # Defined for player health bar
 DAMAGE_PER_HIT = 25
-PLAYER_AWARENESS_RANGE = 1500 # For alien bullet detection
+PLAYER_AWARENESS_RANGE = 200 # For alien bullet detection
 COMMAND_DELAY_MS = 50 # Delay between command executions in milliseconds
 
 # FPS

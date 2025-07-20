@@ -9,7 +9,7 @@ import os
 from core.constants import (
     WIDTH, HEIGHT, BLACK, WHITE, GRAY, DARK_GRAY, RED, GREEN, CYAN, ORANGE,
     FOR_LOOP_COLOR, BULLET_RADIUS, TARGET_MAX_HEALTH, PLAYER_MAX_HEALTH,
-    DAMAGE_PER_HIT, PLAYER_AWARENESS_RANGE, COMMAND_DELAY_MS, screen, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP, ALIEN_TYPES, DARK_OVERLAY_COLOR
+    DAMAGE_PER_HIT, PLAYER_AWARENESS_RANGE, COMMAND_DELAY_MS, screen, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP, ALIEN_TYPES, DARK_OVERLAY_COLOR, CODE_FONT_SIZE
 )
 #from game1 import code_font
 from ui.button import Button
@@ -17,9 +17,9 @@ from entities.player import Player
 from entities.alien import Alien
 from entities.bullet import Bullet
 from entities.commands import Command
-from entities.bullet_shapes import Circle, Square, Triangle# Import shape classes
+from entities.bullet_shapes import Circle, Square, Triangle
 
-from orbital.core.constants import CODE_FONT_SIZE
+#from orbital.core.constants import CODE_FONT_SIZE
 
 pygame.init()
 pygame.font.init()
@@ -523,18 +523,17 @@ class Level:
                         Cmd.editing_text = ""
 
         # Handle run button
-        if self.run_button.is_clicked(mouse_pos, event):
+        if self.run_button.is_clicked(mouse_pos, event) and event.button == 1:
             """if not self.command_queue:
                 self.command_queue = self.main_code.copy()
             self.current_command = None"""
             self.code_editor = False
             self.game_view = True
             self.cmd_gen = self.execute_commands(self.main_code, None)
-
             #self.execute_commands(self.main_code, screen, mouse_pos, event)
 
         # Handle reset button
-        if self.reset_button.is_clicked(mouse_pos, event):
+        if self.reset_button.is_clicked(mouse_pos, event) and event.button == 1:
             self.main_code = []
             main_code_height = 0
             #self.recalculate_code_positions()
@@ -614,6 +613,7 @@ class Level:
         """Add a command or loop block to main code"""
         # Calculate position in code area
         pos_in_area = (mouse_pos[0] - self.code_area.x, mouse_pos[1] - self.code_area.y)
+        #new_cmd = None
 
         insert_index = len(cmd_list)
         for b, cmd in enumerate(cmd_list):
@@ -707,7 +707,7 @@ class Level:
                     # Initial height  # Initial height # Initial height
                 ),
                 depth=0 if not parent_cmd else parent_cmd.depth + 1,
-                code_font=self.code_font,
+                code_font=pygame.font.Font(None, 18),
                 original_rect = pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
