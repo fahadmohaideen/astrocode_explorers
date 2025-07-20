@@ -99,17 +99,6 @@ class Level2(Level):
                         cmd.condition_var = self._cycle_value(current_var, self.var_dict)
                         #cmd.editing_condition_part = None  # Not typing, just cycling
 
-                    """elif op_box.collidepoint(mouse_pos):
-                        # Cycle through operators
-                        current_op = getattr(cmd, 'condition_op', None)
-                        cmd.condition_op = self._cycle_value(current_op, self.op_dict)
-                        #cmd.editing_condition_part = None  # Not typing, just cycling
-
-                    elif val_box.collidepoint(mouse_pos):
-                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
-                        cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
-                        return True  # Click handled"""
-
                 # Handle 'Shoot' Command clicks (specific to Level 3)
                 # Handle 'Shoot' Command clicks (specific to Level 3)
                 elif cmd.cmd_type == "shoot":

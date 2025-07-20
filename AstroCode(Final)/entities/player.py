@@ -77,15 +77,15 @@ class Player:
         bullet.dy = -math.cos(angle_rad) * BULLET_SPEED
         bullet.active = True
 
-    def shoot_bullet(self, bullet_type, alien_pos, color):
-        # Calculate direction to alien
-        direction = (alien_pos - self.pos).normalize()
-        self.angle = pygame.Vector2(0, -1).angle_to(direction)
+    def shoot_bullet(self, bullet_type, direction, color):
+        """Shoots a bullet in the given direction"""
+        # Always spawn bullet at player's current world position
+        spawn_pos = self.pos.copy()
 
-        # Create new bullet immediately
+        # Create new bullet
         bullet = Bullet(
-            x=self.pos.x,
-            y=self.pos.y,
+            x=spawn_pos.x,
+            y=spawn_pos.y,
             dx=direction.x * BULLET_SPEED,
             dy=direction.y * BULLET_SPEED,
             bullet_type=bullet_type,
@@ -94,26 +94,50 @@ class Player:
         self.bullets.append(bullet)
         return bullet
 
-    def update_bullets(self, targets, level_id, dt):
-        for bullet in self.bullets[:]:  # Iterate over copy
+    # Fixed update_bullets method in player.py
+
+    def update_bullets(self, targets, level_id, dt, camera_offset=None):
+        """Update player bullets and check collisions"""
+        for bullet in self.bullets[:]:
             if not bullet.active:
                 continue
 
-            # Update position
+            # Update position using world coordinates
             bullet.pos.x += bullet.dx * dt
             bullet.pos.y += bullet.dy * dt
 
-            # Check if bullet is off-screen
-            if not (0 <= bullet.pos.x <= WIDTH and 0 <= bullet.pos.y <= HEIGHT):
+            # Remove bullets that go too far from player (world bounds)
+            player_to_bullet = bullet.pos - self.pos
+            if player_to_bullet.length() > 2000:  # 2000 pixel max range
                 bullet.active = False
                 continue
 
-            # Check collision with all targets
-            for target in targets:
-                if target.active and bullet.pos.distance_to(target.pos) < target.width / 2 + bullet.radius:
+            # Check collisions using world coordinates
+            for target in targets[:]:  # Create copy to avoid modification during iteration
+                if not target.active or target.health <= 0:
+                    continue
+
+                # Calculate distance between bullet and target centers
+                distance = bullet.pos.distance_to(target.pos)
+                collision_threshold = target.width / 2 + bullet.radius
+
+                if distance < collision_threshold:
+                    print(f"HIT! Bullet hit {target.name} at distance {distance:.2f}")
+                    print(f"Target health before: {target.health}")
+
                     bullet.active = False
                     target.health -= DAMAGE_PER_HIT
-                    break  # Stop checking other targets after first hit
+
+                    print(f"Target health after: {target.health}")
+
+                    if target.health <= 0:
+                        target.active = False
+                        print(f"{target.name} destroyed!")
+
+                    break
+
+        # Remove inactive bullets
+        self.bullets = [bullet for bullet in self.bullets if bullet.active]
 
 
 

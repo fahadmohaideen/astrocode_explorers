@@ -61,6 +61,7 @@ while running:
     prev_time = current_time
     walk_frame_delay += 1
 
+
     #update_starfield(dt)
 
     if current_state == STATE_START:
@@ -121,6 +122,7 @@ while running:
         except (StopIteration, TypeError):
             pass
         level1.update(dt)
+
 
     elif current_state == STATE_LEVEL2:
         if level2.game_view:

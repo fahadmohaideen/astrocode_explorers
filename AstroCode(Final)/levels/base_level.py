@@ -474,14 +474,16 @@ class Level:
 
         # Handle run button
         if self.run_button.is_clicked(mouse_pos, event):
-            """if not self.command_queue:
-                self.command_queue = self.main_code.copy()
-            self.current_command = None"""
+            print("=== RUN BUTTON CLICKED ===")
             self.code_editor = False
             self.game_view = True
+
+            # Reset and create new generator each time
             self.cmd_gen = self.execute_commands(self.main_code, None)
 
-            #self.execute_commands(self.main_code, screen, mouse_pos, event)
+            # Force immediate target update
+            self._update_nearest_alien()
+            print(f"Ready to execute with target: {self.curr_nearest_alien}")
 
         # Handle reset button
         if self.reset_button.is_clicked(mouse_pos, event):
@@ -495,7 +497,7 @@ class Level:
                 for _ in range(cmd.iterations):
                     yield from self.execute_commands(cmd.nested_commands, cmd)
             elif cmd.is_conditional():
-                 if self.var_dict[cmd.condition_var][0]:
+                if self.var_dict[cmd.condition_var][0]:
                     yield from self.execute_commands(cmd.nested_commands, cmd)
             elif cmd.cmd_type == "while_loop":
                 while True:
@@ -512,45 +514,63 @@ class Level:
                 elif cmd.cmd_type == "move_right":
                     self.player.pos += pygame.Vector2(80, 0)
                 elif cmd.cmd_type == "shoot":
-                    if not self.curr_nearest_alien:
-                        self._update_nearest_alien()
+                    # ALWAYS update target before shooting
+                    self._update_nearest_alien()
 
-                    if self.curr_nearest_alien:
-                        bullet_type = cmd.shoot_bullet_type
+                    print(f"Attempting to shoot. Current target: {self.curr_nearest_alien}")
+                    active_count = len([a for a in self.aliens if a.active and a.health > 0])
+                    print(f"Active aliens remaining: {active_count}")
+
+                    if self.curr_nearest_alien and self.curr_nearest_alien.active and self.curr_nearest_alien.health > 0:
+                        # Calculate direction in world space
+                        direction = (self.curr_nearest_alien.pos - self.player.pos).normalize()
+
+                        bullet_type = cmd.shoot_bullet_type if hasattr(cmd, 'shoot_bullet_type') else "Player"
                         color = ALIEN_TYPES.get(bullet_type, ORANGE)
-                        self.player.shoot_bullet(
+
+                        # Shoot from player's position
+                        bullet = self.player.shoot_bullet(
                             bullet_type=bullet_type,
-                            alien_pos=self.curr_nearest_alien.pos,
+                            direction=direction,
                             color=color
                         )
-                    yield  # Important for command sequencing
 
-            #pygame.time.wait(step_delay)
-                #screen.fill(BLACK)
-            #self.draw_all(screen, mouse_pos, event)
-            #pygame.display.update()
+                        print(f"Bullet created at {bullet.pos} targeting {self.curr_nearest_alien.name}")
+                        print(f"Direction vector: {direction}")
+
+                        # Brief pause for shot animation
+                        for _ in range(3):
+                            yield
+                    else:
+                        print("No valid target to shoot at - target is dead or inactive")
+
+    # Fixed handle_events method for Run button
+
 
     def _update_nearest_alien(self):
-        """Updates the nearest active alien to target"""
+        """Updates the nearest active alien to target using world coordinates"""
         self.curr_nearest_alien = None
         min_dist = float('inf')
 
-        for alien in self.aliens:
-            # First check if the alien has the 'active' attribute
-            if not hasattr(alien, 'active'):
-                alien.active = True  # Initialize if missing
+        # Filter for truly active aliens (alive and active)
+        active_aliens = [a for a in self.aliens if a.active and a.health > 0]
+        if not active_aliens:
+            print("No active aliens remaining")
+            return
 
-            if not alien.active:
-                continue
-
+        for alien in active_aliens:
+            # Use world-space distance for consistent targeting
             dist = (alien.pos - self.player.pos).length()
+
             if dist < min_dist:
                 min_dist = dist
                 self.curr_nearest_alien = alien
 
-        # Optional: Add a maximum targeting range
-        if min_dist > 1000:  # Adjust this value as needed
-            self.curr_nearest_alien = None
+        # Debug output
+        if self.curr_nearest_alien:
+            print(f"Targeting {self.curr_nearest_alien.name} at distance {min_dist:.2f}")
+        else:
+            print("No valid targets found")
 
 
     def add_to_main_code(self, cmd_list, cmd_rect, command_type, mouse_pos, i, parent_cmd):
@@ -756,4 +776,10 @@ class Level:
         self.draw_bullets(screen)
         self.draw_minimap()
         self.draw_alien_dir()
+        # Debug draw - targeting line
+        if self.curr_nearest_alien:
+            start_pos = self.player.offset_pos
+            end_pos = self.curr_nearest_alien.pos - self.camera_offset
+            pygame.draw.line(screen, (255, 255, 0), start_pos, end_pos, 1)
+
 
