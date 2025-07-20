@@ -2,8 +2,8 @@
 import pytest
 from unittest.mock import Mock
 
-from tests.mocks.pygame_mock import MockRect, mock_constants_module
 
+from tests.mocks.pygame_mock import MockRect, mock_constants_module
 from entities.player import Player
 from entities.alien import Alien
 from entities.bullet import Bullet
@@ -43,6 +43,7 @@ def bullet_instance():
 
 @pytest.fixture
 def command_instance(mock_fonts):
+    
     mock_rect = MockRect(0, 0, 100, 30)
     return Command(cmd_type="move_up", code_font=mock_fonts['code_font'], rect=mock_rect)
 

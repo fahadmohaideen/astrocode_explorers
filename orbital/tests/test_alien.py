@@ -1,4 +1,6 @@
+
 from unittest.mock import patch
+
 import core.constants as constants
 from tests.mocks.pygame_mock import MockVector2
 import random
