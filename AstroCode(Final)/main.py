@@ -239,6 +239,10 @@ while running:
                 level4.exit_to_levels = False
 
     # Update
+    def update(self, dt):
+        """Update game state"""
+        self.check_bullet_alien_collisions()
+        # ... other update code ...
 
     pygame.display.flip()
     clock.tick(FPS)

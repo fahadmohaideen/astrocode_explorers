@@ -22,6 +22,7 @@ class Alien(Player):
         self.y = y
         self.width = 60
         self.height = 60
+        self.size = 60
         self.pos = pygame.Vector2(self.x + self.width / 2, self.y + self.height / 2)
         self.offset_pos = self.pos
         self.angle = 90
@@ -35,6 +36,9 @@ class Alien(Player):
         self.bullet_pool = []
         self.shoot_cooldown = 1000  # ms between shots
         self.detection_range = 500  # pixels
+        self.disappearing = False
+        self.disappear_timer = 0
+        self.disappear_duration = 30  # frames for disappearance effect
 
     def update(self, dt, player=None):
         """Update alien state and bullets"""

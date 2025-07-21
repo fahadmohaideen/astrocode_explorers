@@ -98,6 +98,10 @@ class Player:
 
     def update_bullets(self, targets, level_id, dt, camera_offset=None):
         """Update player bullets and check collisions"""
+        # Convert single target to list if needed
+        if not isinstance(targets, (list, tuple)):
+            targets = [targets] if targets else []
+
         for bullet in self.bullets[:]:
             if not bullet.active:
                 continue
@@ -113,17 +117,17 @@ class Player:
                 continue
 
             # Check collisions using world coordinates
-            for target in targets[:]:  # Create copy to avoid modification during iteration
-                if not target.active or target.health <= 0:
+            for target in targets:  # No need for [:] since we already made a list
+                if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
                     continue
 
                 # Calculate distance between bullet and target centers
                 distance = bullet.pos.distance_to(target.pos)
-                collision_threshold = target.width / 2 + bullet.radius
+                collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
                 if distance < collision_threshold:
-                    print(f"HIT! Bullet hit {target.name} at distance {distance:.2f}")
-                    print(f"Target health before: {target.health}")
+                    print(f"HIT! Bullet hit {getattr(target, 'name', 'target')} at distance {distance:.2f}")
+                    print(f"Target health before: {getattr(target, 'health', 0)}")
 
                     bullet.active = False
                     target.health -= DAMAGE_PER_HIT
@@ -132,7 +136,7 @@ class Player:
 
                     if target.health <= 0:
                         target.active = False
-                        print(f"{target.name} destroyed!")
+                        print(f"{getattr(target, 'name', 'target')} destroyed!")
 
                     break
 
