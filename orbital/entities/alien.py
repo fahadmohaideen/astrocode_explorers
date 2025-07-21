@@ -76,7 +76,7 @@ class Alien(Player):
     def move_towards_player(self, player_pos, dt, boundary_width, boundary_height):
         """Move towards the player if within detection range."""
         # Calculate direction to player
-        direction_to_player = pygame.Vector2(player_pos) - self.pos
+        direction_to_player = player_pos - self.pos
         distance_to_player = direction_to_player.length()
         
         # If player is within 300 units but more than 75 units away, chase the player

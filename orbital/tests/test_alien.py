@@ -1,5 +1,6 @@
 # tests/test_alien.py
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+import pygame
 
 # Import Alien and constants from the main game code
 import core.constants as constants # Import mock constants
@@ -49,22 +50,44 @@ def test_alien_take_damage(alien_instance, player_instance):
             player_instance.bullet_index = 0
 
 def test_alien_shoot_alien_bullets(alien_instance, player_instance):
-    initial_bullet_count = len(alien_instance.bullets)
-    # Mock get_ticks to simulate time passing
-    with patch('pygame.time.get_ticks', side_effect=[0, 600, 1200]): # Simulate 600ms then another 600ms
-        alien_instance.shoot_alien_bullets(player_instance, 0.1) # First call, no shot (prev_time is 0)
-        assert len(alien_instance.bullets) == initial_bullet_count
-
-        alien_instance.shoot_alien_bullets(player_instance, 0.1) # Second call, should shoot
-        assert len(alien_instance.bullets) == initial_bullet_count + 1
-        bullet = alien_instance.bullets[0]
-        assert bullet.active
-        assert bullet.color == (255, 100, 255) # Hardcoded color in alien.py
-
-        alien_instance.shoot_alien_bullets(player_instance, 0.1) # Third call, no shot yet
-        assert len(alien_instance.bullets) == initial_bullet_count + 2
-
-        # Simulate more time for another shot
-        with patch('pygame.time.get_ticks', return_value=1200): # Force time ahead for next shot
-            alien_instance.shoot_alien_bullets(player_instance, 0.1)
-            assert len(alien_instance.bullets) == initial_bullet_count + 2
+    # Reset the alien's bullet list and prev_time
+    alien_instance.bullets = []
+    alien_instance.prev_time = 0
+    
+    # First call - should NOT shoot because curr_time - prev_time (0-0) < 500
+    with patch('pygame.time.get_ticks', return_value=0):
+        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    assert len(alien_instance.bullets) == 0, "First call should NOT add a bullet (0-0 < 500)"
+    
+    # Set prev_time to a known value (0)
+    alien_instance.prev_time = 0
+    
+    # Second call - should shoot because curr_time (600) - prev_time (0) >= 500
+    with patch('pygame.time.get_ticks', return_value=600):
+        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    
+    # Should have 1 bullet now
+    assert len(alien_instance.bullets) == 1, "Second call should add first bullet (600-0 >= 500)"
+    bullet = alien_instance.bullets[0]
+    assert bullet.color == (255, 100, 255)  # Hardcoded color in alien.py
+    
+    # Third call - should NOT shoot because not enough time has passed (only 100ms)
+    with patch('pygame.time.get_ticks', return_value=700):
+        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    assert len(alien_instance.bullets) == 1, "Third call should NOT add a bullet (700-600 < 500)"
+    
+    # Fourth call - should shoot because 500ms has passed since last shot
+    with patch('pygame.time.get_ticks', return_value=1200):
+        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    
+    # Should now have 2 bullets
+    assert len(alien_instance.bullets) == 2, "Fourth call should add second bullet (1200-600 >= 500)"
+    
+    # Verify the second bullet's velocity direction is towards the player
+    bullet2 = alien_instance.bullets[1]
+    direction_to_player = (player_instance.pos - alien_instance.pos).normalize()
+    
+    # Create a vector from the bullet's velocity components
+    bullet_direction = pygame.Vector2(bullet2.dx, bullet2.dy).normalize()
+    assert abs(bullet_direction.x + direction_to_player.x) < 0.1, f"Bullet X direction {bullet_direction.x} should point towards player {direction_to_player.x}"
+    assert abs(bullet_direction.y - direction_to_player.y) < 0.1, f"Bullet Y direction {bullet_direction.y} should point towards player {direction_to_player.y}"
