@@ -2,9 +2,9 @@ name: Run Tests
 
 on:
   push:
-    branches: [ '**' ]  # This will match all branches
+    branches: [ '**' ]
   pull_request:
-    branches: [ '**' ]  # This will match all branches
+    branches: [ '**' ]
   workflow_dispatch:
 
 jobs:
@@ -30,6 +30,5 @@ jobs:
         pip install -e .
     
     - name: Run tests
-      run: |
-        python -m pytest orbital/tests/ -v
+      run: python -m pytest orbital/tests/ -v
     

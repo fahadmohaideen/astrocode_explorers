@@ -1,4 +1,3 @@
-
 from entities.commands import Command
 from tests.mocks.pygame_mock import MockRect
 

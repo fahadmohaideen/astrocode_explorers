@@ -33,7 +33,7 @@ def test_alien_take_damage(alien_instance, player_instance):
             bullet = player_instance.bullets[0]
             assert bullet.active
 
-            dt = 0.01
+            dt = 0.01 
             while player_instance.bullet_index <= 0:
                 player_instance.update_bullets(alien_instance, 0, dt)
 
@@ -43,18 +43,21 @@ def test_alien_take_damage(alien_instance, player_instance):
             alien_instance.health = constants.TARGET_MAX_HEALTH
             player_instance.bullet_index = 0
 
-def test_alien_shoot_alien_bullets(alien_instance, player_instance):
+def test_alien_shoot_alien_bullets(alien_instance, player_instance, monkeypatch):
     alien_instance.bullets = []
     alien_instance.prev_time = 0
     
-    with patch('pygame.time.get_ticks', return_value=0):
-        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    mock_ticks = [0, 600, 700, 1200]
+    
+    def mock_get_ticks():
+        return mock_ticks.pop(0) if mock_ticks else 0
+    
+    monkeypatch.setattr('pygame.time.get_ticks', mock_get_ticks)
+    
+    alien_instance.shoot_alien_bullets(player_instance, 0.1)
     assert len(alien_instance.bullets) == 0, "First call should NOT add a bullet (0-0 < 500)"
     
-    alien_instance.prev_time = 0
-    
-    with patch('pygame.time.get_ticks', return_value=600):
-        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    alien_instance.shoot_alien_bullets(player_instance, 0.1)
     
     assert len(alien_instance.bullets) == 1, "Second call should add first bullet (600-0 >= 500)"
     bullet = alien_instance.bullets[0]
@@ -68,10 +71,12 @@ def test_alien_shoot_alien_bullets(alien_instance, player_instance):
         alien_instance.shoot_alien_bullets(player_instance, 0.1)
     
     assert len(alien_instance.bullets) == 2, "Fourth call should add second bullet (1200-600 >= 500)"
-    
     bullet2 = alien_instance.bullets[1]
     direction_to_player = (player_instance.pos - alien_instance.pos).normalize()
     
     bullet_direction = pygame.Vector2(bullet2.dx, bullet2.dy).normalize()
-    assert abs(bullet_direction.x + direction_to_player.x) < 0.1, f"Bullet X direction {bullet_direction.x} should point towards player {direction_to_player.x}"
-    assert abs(bullet_direction.y - direction_to_player.y) < 0.1, f"Bullet Y direction {bullet_direction.y} should point towards player {direction_to_player.y}"
+    
+    assert abs(bullet_direction.x - direction_to_player.x) < 0.1, \
+        f"Bullet X direction {bullet_direction.x} should match player direction {direction_to_player.x}"
+    assert abs(bullet_direction.y - direction_to_player.y) < 0.1, \
+        f"Bullet Y direction {bullet_direction.y} should match player direction {direction_to_player.y}"
