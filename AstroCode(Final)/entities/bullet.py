@@ -38,7 +38,6 @@ class Bullet:
             "Alien Type A": "bullet_red.png",
             "Alien Type B": "bullet_green.png",
             "Alien Type C": "bullet_blue.png",
-            "Player": "bullet_orange.png"
         }
 
         if self.bullet_type in bullet_images:

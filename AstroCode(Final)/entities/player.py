@@ -86,6 +86,9 @@ class Player:
         return bullet
 
     def update_bullets(self, targets, level_id, dt, camera_offset=None):
+        if not isinstance(targets, (list, tuple)):
+            targets = [targets] if targets else []
+
         for bullet in self.bullets[:]:
             if not bullet.active:
                 continue
@@ -98,15 +101,15 @@ class Player:
                 bullet.active = False
                 continue
 
-            for target in targets[:]:
-                if not target.active or target.health <= 0:
+            for target in targets:
+                if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
                     continue
                 distance = bullet.pos.distance_to(target.pos)
-                collision_threshold = target.width / 2 + bullet.radius
+                collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
                 if distance < collision_threshold:
-                    print(f"HIT! Bullet hit {target.name} at distance {distance:.2f}")
-                    print(f"Target health before: {target.health}")
+                    print(f"HIT! Bullet hit {getattr(target, 'name', 'target')} at distance {distance:.2f}")
+                    print(f"Target health before: {getattr(target, 'health', 0)}")
 
                     bullet.active = False
                     target.health -= DAMAGE_PER_HIT
@@ -115,7 +118,7 @@ class Player:
 
                     if target.health <= 0:
                         target.active = False
-                        print(f"{target.name} destroyed!")
+                        print(f"{getattr(target, 'name', 'target')} destroyed!")
 
                     break
 

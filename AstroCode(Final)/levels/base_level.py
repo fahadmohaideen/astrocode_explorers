@@ -7,7 +7,7 @@ import random
 import os
 
 from core.constants import (
-    WIDTH, HEIGHT, BLACK, WHITE, GRAY, DARK_GRAY, RED, GREEN, CYAN, ORANGE,
+    WIDTH, HEIGHT, BLACK, WHITE, GRAY, BLUE, DARK_GRAY, RED, GREEN, CYAN, ORANGE,
     FOR_LOOP_COLOR, BULLET_RADIUS, TARGET_MAX_HEALTH, PLAYER_MAX_HEALTH,
     DAMAGE_PER_HIT, PLAYER_AWARENESS_RANGE, COMMAND_DELAY_MS, screen, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP, ALIEN_TYPES, DARK_OVERLAY_COLOR
 )
@@ -111,18 +111,12 @@ class Level:
         self.frame_index = 0
         self.animation_counter = 0
         self.animation_speed = 0.2
+        self.aliens_eliminated = 0
+        self.total_aliens_to_eliminate = 3
         #self.spawn_aliens(3)
 
     def reset_level(self, code_font, title_font, menu_font):
         self.__init__(code_font, title_font, menu_font)
-
-        """self.bullet_options.append(
-            Circle(val_box.centerx, val_box.centery, int(0.15 * (val_box.right - val_box.left)), WHITE))
-        self.bullet_options.append(
-            Square(val_box.centerx - 10, val_box.centery - 10, int(0.3 * (val_box.right - val_box.left)), WHITE))
-        self.bullet_options.append(Triangle(
-            [(val_box.bottomleft[0] + 15, val_box.bottomleft[1] - 5), (val_box.midtop[0], val_box.midtop[1] + 5),
-             (val_box.bottomright[0] - 15, val_box.bottomright[1] - 5)], WHITE))"""
 
     def _init_commands(self):
         basic_commands = list(self.commands.keys())
@@ -462,7 +456,6 @@ class Level:
                 elif cmd.cmd_type == "move_right":
                     self.player.pos += pygame.Vector2(80, 0)
                 elif cmd.cmd_type == "shoot":
-                    # ALWAYS update target before shooting
                     self._update_nearest_alien()
 
                     print(f"Attempting to shoot. Current target: {self.curr_nearest_alien}")
@@ -615,34 +608,62 @@ class Level:
         cmd_list.insert(insert_index, new_cmd)
         #self.recalculate_code_positions()
 
+    def update_aliens(self):
+        aliens_to_remove = []
+        elimination_count = 0
+
+        for alien in self.aliens:
+            if alien.health <= 0 and not alien.disappearing:
+                alien.disappearing = True
+                alien.disappear_timer = alien.disappear_duration
+
+            if alien.disappearing:
+                alien.disappear_timer -= 1
+                if alien.disappear_timer <= 0:
+                    aliens_to_remove.append(alien)
+                    elimination_count += 1
+
+        for alien in aliens_to_remove:
+            self.aliens.remove(alien)
+
+        return elimination_count
+
+    def draw_disappearing_aliens(self, surface):
+        for alien in self.aliens:
+            if alien.disappearing:
+                alpha = int(255 * (alien.disappear_timer / alien.disappear_duration))
+
+                alien_img_copy = self.var_dict[alien.name][2].copy()
+                alien_img_copy.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
+
+                scale = 1.0 - (1.0 - (alien.disappear_timer / alien.disappear_duration)) * 0.5
+                scaled_img = pygame.transform.scale(
+                    alien_img_copy,
+                    (int(60 * scale), int(60 * scale))
+                )
+
+                pulse = math.sin(pygame.time.get_ticks() * 0.01) * 5 * (
+                            1 - (alien.disappear_timer / alien.disappear_duration))
+                pos = alien.offset_pos + pygame.Vector2(pulse, pulse)
+
+                surface.blit(scaled_img, pos)
+            elif alien.active and alien.health > 0:
+                alien.draw_player(surface, self.var_dict[alien.name][2])
+
     def draw_popups(self, screen, mouse_pos, event):
-        if self.alien.health <= 0:
-            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
+        if self.level_completed and self.current_popup == "victory":
+            popup_rect = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 100, 400, 200)
             pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
             pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
 
-            text = self.title_font.render("Good Job!", True, GREEN)
+            text = self.title_font.render("Mission Complete!", True, GREEN)
             screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
 
-            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
-                                  "Continue", BLUE, CYAN, self.menu_font)
-            continue_btn.draw(screen)
-            if continue_btn.is_clicked(mouse_pos, event):
-                self.current_popup = None
-                self.exit_to_levels = True
-                """self.commands.update({
-                    "turn_right": {"color": (20, 100, 0), "text": "Turn Right"},
-                    "reverse": {"color": (250, 100, 0), "text": "Reverse"}
-                })"""
-        if self.player.health <= 0:
-            popup_rect = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 75, 300, 150)
-            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
-            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
+            stats_text = f"Eliminated {self.aliens_eliminated} aliens"
+            stats_surface = self.menu_font.render(stats_text, True, WHITE)
+            screen.blit(stats_surface, (popup_rect.centerx - stats_surface.get_width() // 2, popup_rect.centery - 20))
 
-            text = self.title_font.render("The aliens killed you!", True, GREEN)
-            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 20))
-
-            continue_btn = Button(popup_rect.centerx - 75, popup_rect.top + 80, 150, 40,
+            continue_btn = Button(popup_rect.centerx - 75, popup_rect.bottom - 60, 150, 40,
                                   "Continue", BLUE, CYAN, self.menu_font)
             continue_btn.draw(screen)
             if continue_btn.is_clicked(mouse_pos, event):
@@ -676,28 +697,49 @@ class Level:
         self.draw_bullets(screen)
         self.draw_popups(screen, mouse_pos, event)
 
+    def draw_elimination_counter(self, surface):
+        counter_text = f"Aliens Eliminated: {self.aliens_eliminated}/{self.total_aliens_to_eliminate}"
+        text_surface = self.menu_font.render(counter_text, True, WHITE)
+
+        bg_rect = pygame.Rect(10, 50, text_surface.get_width() + 20, text_surface.get_height() + 10)
+        pygame.draw.rect(surface, (0, 0, 0, 150), bg_rect, border_radius=5)
+        pygame.draw.rect(surface, GREEN, bg_rect, 2, border_radius=5)
+
+        surface.blit(text_surface, (bg_rect.x + 10, bg_rect.y + 5))
+
     def draw_game(self, screen, mouse_pos, event, frame_index):
         self.update_camera()
         self.draw_terrain(screen)
-        #self.draw_minimap()
-        #self.draw_alien_dir()
+
+        eliminations = self.update_aliens()
+        self.aliens_eliminated += eliminations
+
+        if self.aliens_eliminated >= self.total_aliens_to_eliminate and not self.level_completed:
+            self.level_completed = True
+            self.current_popup = "victory"
+
         self.player.offset_pos = self.player.pos - self.camera_offset
+
+        self.draw_disappearing_aliens(screen)
+
         for alien in self.aliens:
-            alien.offset_pos = alien.pos - self.camera_offset
-            alien.draw_player(screen, self.var_dict[alien.name][2])
-            alien.draw_health_bar(screen)
-        #self.alien.draw_player(screen)
-        #self.player.draw_player(screen)
+            if not alien.disappearing:
+                alien.offset_pos = alien.pos - self.camera_offset
+                alien.draw_health_bar(screen)
+
         self.player.draw_player(screen, self.walk_frames[frame_index])
-        #self.draw_code_blocks(screen)
         self.run_button.draw(screen)
         self.reset_button.draw(screen)
+
         if self.level_id >= 3:
             self.player.draw_health_bar(screen)
+
         self.draw_bullets(screen)
         self.draw_minimap()
         self.draw_alien_dir()
-        # Debug draw - targeting line
+
+        self.draw_elimination_counter(screen)
+
         if self.curr_nearest_alien:
             start_pos = self.player.offset_pos
             end_pos = self.curr_nearest_alien.pos - self.camera_offset

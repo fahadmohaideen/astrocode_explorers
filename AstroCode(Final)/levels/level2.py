@@ -1,5 +1,5 @@
 from levels.base_level import Level
-from core.constants import FOR_LOOP_COLOR
+from core.constants import FOR_LOOP_COLOR, WHITE
 import pygame
 import copy
 import os
@@ -10,20 +10,18 @@ pygame.font.init()
 class Level2(Level):
     def __init__(self, code_font, title_font, menu_font):
         super().__init__(code_font, title_font, menu_font)
-        #self.curr_nearest_alien = None
         self.level_id = 2
         self.code_blocks = []
-        #self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
         self.commands["if_statement"] = {"color": FOR_LOOP_COLOR, "text": "if"}
         self.var_dict.update({"Alien near": [False, None, None],
-                            "Alien Type A": [False, None, None],
-                            "Alien Type B": [False, None, None],
-                            "Alien Type C": [False, None, None]})
-        # In Level2.__init__():
+                              "Alien Type A": [False, None, None],
+                              "Alien Type B": [False, None, None],
+                              "Alien Type C": [False, None, None]})
+
         self.value_options = [
-            "Alien Type A",  
-            "Alien Type B",  
-            "Alien Type C"  
+            "Alien Type A",
+            "Alien Type B",
+            "Alien Type C"
         ]
         self.current_value_index = -1
         self.shoot_index = -1
@@ -57,7 +55,11 @@ class Level2(Level):
         self.player.pos += movement
 
         self.var_dict["Alien near"][0] = False
-        for alien in self.aliens:
+        for alien in self.aliens[:]:
+            if alien.health <= 0 and alien.active:
+                alien.active = False
+                continue
+
             alien_near = self.player.pos.distance_to(alien.pos) < 200
             self.var_dict[alien.name][0] = alien_near
             self.var_dict[alien.name][1] = alien if alien_near else None
@@ -68,13 +70,14 @@ class Level2(Level):
         active_aliens = [alien for alien in self.aliens if alien.active]
         self.player.update_bullets(active_aliens, self.level_id, dt)
 
-
+        if len([a for a in self.aliens if not a.active]) >= 3 and not self.level_completed:
+            self.level_completed = True
+            self.current_popup = "victory"
 
     def _process_command_clicks_recursive(self, mouse_pos, commands_list):
         for cmd in commands_list:
             if cmd.rect and cmd.rect.collidepoint(mouse_pos):
                 if cmd.is_conditional():
-                    var_box, op_box, val_box = cmd.var_box, cmd.op_box, cmd.val_box
                     var_box, op_box, val_box = cmd.var_box, cmd.op_box, cmd.val_box
 
                     if var_box.collidepoint(mouse_pos):
@@ -93,7 +96,6 @@ class Level2(Level):
                         cmd.editing_text = ""
                         return True
                     self.editing_loop_cmd = None
-
 
             if cmd.is_loop() or cmd.is_conditional() or cmd.cmd_type == "while_loop":
                 if self._process_command_clicks_recursive(mouse_pos, cmd.nested_commands):
