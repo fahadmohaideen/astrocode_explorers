@@ -11,15 +11,15 @@ from core.constants import (
 
 class Alien(Player):
     def __init__(self, x, y, name):
-        super().__init__()
+        # Initialize Player with proper dimensions first
+        super().__init__(x, y, 60, 60)  # width=60, height=60
         self.x = x
         self.y = y
-        self.width = 60
-        self.height = 60
         self.pos = pygame.Vector2(self.x + self.width/2, self.y + self.height/2)
         self.offset_pos = self.pos
         self.angle = 90
-        #self.body_rect = pygame.Rect(self.offset_pos.x, self.offset_pos.y, self.width, self.height)
+        self.body_rect = pygame.Rect(self.offset_pos.x - self.width/2, self.offset_pos.y - self.height/2,
+                                   self.width, self.height)
         self.shape_options = ["circle", "square", "triangle"]
         self.prev_time = 0 
         self.health = TARGET_MAX_HEALTH 
@@ -97,14 +97,17 @@ class Alien(Player):
             
             # Update angle to face the player
             if self.direction.length() > 0:
-                self.angle = math.degrees(math.atan2(-self.direction.y, self.direction.x)) - 90
+                # Calculate angle in degrees where 0 is up, 90 is right, 180 is down, 270 is left
+                #self.angle = math.degrees(math.atan2(-self.direction.x, -self.direction.y))
+                self.bullet_vec = self.direction
                 
         # If player is within 75 units, stop moving but still face the player
         elif distance_to_player <= 100 and distance_to_player > 0:
             # Just update the angle to face the player without moving
             self.direction = direction_to_player.normalize()
             if self.direction.length() > 0:
-                self.angle = math.degrees(math.atan2(-self.direction.y, self.direction.x)) - 90
+                # Calculate angle in degrees where 0 is up, 90 is right, 180 is down, 270 is left
+                self.bullet_vec = self.direction
                 
         # If player is too far, move randomly
         else:
@@ -125,7 +128,8 @@ class Alien(Player):
             # Update position and angle
             self.pos = new_pos
             if self.direction.length() > 0:
-                self.angle = math.degrees(math.atan2(-self.direction.y, self.direction.x)) - 90
+                # Calculate angle in degrees where 0 is up, 90 is right, 180 is down, 270 is left
+                self.bullet_vec = self.direction
     
     def move_randomly(self, dt, boundary_width, boundary_height, player_pos=None):
         """Move the alien, with optional player chasing."""
@@ -156,10 +160,19 @@ class Alien(Player):
         # Update position and angle
         self.pos = new_pos
         if self.direction.length() > 0:
-            self.angle = math.degrees(math.atan2(-self.direction.y, self.direction.x)) - 90
+                # Calculate angle in degrees where 0 is up, 90 is right, 180 is down, 270 is left 
+                self.bullet_vec = self.direction
     
     def shoot_alien_bullets(self, player, dt):
         curr_time = pygame.time.get_ticks()
-        if curr_time - self.prev_time >= 500:  # Original cooldown
-            self.shoot_bullet(None, player.pos, (255, 100, 255))
-            self.prev_time = curr_time
+        time_since_last_shot = curr_time - self.prev_time
+        print(f"[DEBUG] shoot_alien_bullets - curr_time: {curr_time}, prev_time: {self.prev_time}, time_since_last_shot: {time_since_last_shot}")
+        if time_since_last_shot >= 500:  # 500ms cooldown
+            print("[DEBUG] Attempting to shoot bullet")
+            try:
+                self.shoot_bullet("test", player.pos, (255, 100, 255))
+                print(f"[DEBUG] After shoot_bullet, bullets: {len(self.bullets)}")
+                self.prev_time = curr_time
+            except Exception as e:
+                print(f"[ERROR] Error in shoot_bullet: {e}")
+                raise

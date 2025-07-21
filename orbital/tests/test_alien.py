@@ -49,22 +49,31 @@ def test_alien_take_damage(alien_instance, player_instance):
             alien_instance.health = constants.TARGET_MAX_HEALTH
             player_instance.bullet_index = 0
 
-def test_alien_shoot_alien_bullets(alien_instance, player_instance):
+def test_alien_shoot_alien_bullets(alien_instance, player_instance, monkeypatch):
     # Reset the alien's bullet list and prev_time
     alien_instance.bullets = []
     alien_instance.prev_time = 0
     
+    # Create a mock for get_ticks that we can control
+    # We need to provide values for all expected calls:
+    # 1. First call to shoot_alien_bullets (time=0)
+    # 2. Second call to shoot_alien_bullets (time=600)
+    # 3. Third call to shoot_alien_bullets (time=700)
+    # 4. Fourth call to shoot_alien_bullets (time=1200)
+    mock_ticks = [0, 600, 700, 1200]
+    
+    def mock_get_ticks():
+        return mock_ticks.pop(0) if mock_ticks else 0  # Return 0 if no more values
+    
+    # Apply the mock
+    monkeypatch.setattr('pygame.time.get_ticks', mock_get_ticks)
+    
     # First call - should NOT shoot because curr_time - prev_time (0-0) < 500
-    with patch('pygame.time.get_ticks', return_value=0):
-        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    alien_instance.shoot_alien_bullets(player_instance, 0.1)
     assert len(alien_instance.bullets) == 0, "First call should NOT add a bullet (0-0 < 500)"
     
-    # Set prev_time to a known value (0)
-    alien_instance.prev_time = 0
-    
     # Second call - should shoot because curr_time (600) - prev_time (0) >= 500
-    with patch('pygame.time.get_ticks', return_value=600):
-        alien_instance.shoot_alien_bullets(player_instance, 0.1)
+    alien_instance.shoot_alien_bullets(player_instance, 0.1)
     
     # Should have 1 bullet now
     assert len(alien_instance.bullets) == 1, "Second call should add first bullet (600-0 >= 500)"
@@ -87,7 +96,12 @@ def test_alien_shoot_alien_bullets(alien_instance, player_instance):
     bullet2 = alien_instance.bullets[1]
     direction_to_player = (player_instance.pos - alien_instance.pos).normalize()
     
-    # Create a vector from the bullet's velocity components
+    # Create a vector from the bullet's velocity components and normalize it
     bullet_direction = pygame.Vector2(bullet2.dx, bullet2.dy).normalize()
-    assert abs(bullet_direction.x + direction_to_player.x) < 0.1, f"Bullet X direction {bullet_direction.x} should point towards player {direction_to_player.x}"
-    assert abs(bullet_direction.y - direction_to_player.y) < 0.1, f"Bullet Y direction {bullet_direction.y} should point towards player {direction_to_player.y}"
+    
+    # The bullet direction should be the same as the direction to the player
+    # Since the bullet is moving from the alien to the player
+    assert abs(bullet_direction.x - direction_to_player.x) < 0.1, \
+        f"Bullet X direction {bullet_direction.x} should match player direction {direction_to_player.x}"
+    assert abs(bullet_direction.y - direction_to_player.y) < 0.1, \
+        f"Bullet Y direction {bullet_direction.y} should match player direction {direction_to_player.y}"

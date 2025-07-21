@@ -273,7 +273,8 @@ class Level:
             
             alien.update_bullets(self.player, self.level_id, dt)
             
-        self._handle_alien_bullets(dt)
+        # Update alien bullets and handle their collisions
+        #self._handle_alien_bullets(dt)
         
         target = self.aliens[0] if self.aliens else None
         self.player.update_bullets(target, self.level_id, dt)

@@ -29,6 +29,7 @@ class Player:
         self.health = PLAYER_MAX_HEALTH
         self.last_hit_bullet_shape = None
         self.bullet_index = 0
+        self.bullet_vec = pygame.Vector2(0, 1)
 
     def draw_player(self, surface, img):
         #body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
@@ -38,8 +39,8 @@ class Player:
 
         gun_length = self.height * 1.5
         gun_center = (self.body_rect.centerx, self.body_rect.centery)
-        end_x = gun_center[0] + gun_length * math.sin(math.radians(self.angle))
-        end_y = gun_center[1] - gun_length * math.cos(math.radians(self.angle))
+        end_x = gun_center[0] + gun_length * self.bullet_vec.normalize().x
+        end_y = gun_center[1] + gun_length * self.bullet_vec.normalize().y
         pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
 
     """def draw_health_bar(self, surface):
@@ -71,21 +72,21 @@ class Player:
         center_y = y
         gun_length = height * 1.5
 
-        bullet.pos.x = center_x + gun_length * math.sin(angle_rad)
-        bullet.pos.y = center_y - gun_length * math.cos(angle_rad)
-        bullet.dx = math.sin(angle_rad)
-        bullet.dy = -math.cos(angle_rad)
+        bullet.pos.x = center_x + gun_length * self.bullet_vec.normalize().x
+        bullet.pos.y = center_y + gun_length * self.bullet_vec.normalize().y
+        bullet.dx = self.bullet_vec.normalize().x
+        bullet.dy = self.bullet_vec.normalize().y
         bullet.radius = BULLET_RADIUS
         bullet.active = True
 
     def shoot_bullet(self, bullet_type, alien_pos, color):
-        bullet_vec = self.pos - alien_pos
+        self.bullet_vec = alien_pos - self.pos
         #bullet_vec = pygame.Vector2(bullet_vec.x, bullet_vec.y)
         vertical_vec = pygame.Vector2(0, 1)
-        if bullet_type == "test":
-            self.angle = vertical_vec.angle_to(bullet_vec) if bullet_vec.x <= 0 else -1*vertical_vec.angle_to(bullet_vec)
+        """if bullet_type == "test":
+            self.angle = vertical_vec.angle_to(self.bullet_vec) if self.bullet_vec.x <= 0 else -1*vertical_vec.angle_to(self.bullet_vec)
         else:
-            self.angle = vertical_vec.angle_to(bullet_vec)
+            self.angle = vertical_vec.angle_to(self.bullet_vec)"""
 
         for bullet in self.bullet_pool:
             if not bullet.active:
