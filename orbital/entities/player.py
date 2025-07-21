@@ -119,7 +119,7 @@ class Player:
                 if (target.pos.x - BULLET_RADIUS - target.width/2 <= bullet.pos.x <= target.pos.x + target.width/2 + BULLET_RADIUS and
                     target.pos.y - BULLET_RADIUS - target.height/2 <= bullet.pos.y <= target.pos.y + target.height/2 + BULLET_RADIUS):
                     
-                    hit_direction = pygame.Vector2(target.pos) - pygame.Vector2(bullet.pos)
+                    hit_direction = target.pos - bullet.pos
                     
                     if hasattr(target, 'apply_pushback'):
                         target.apply_pushback(hit_direction)
@@ -128,7 +128,7 @@ class Player:
                     
                     target.health = max(0, target.health - DAMAGE_PER_HIT)
                     self.damage_dealt = True
-                self.bullet_index += 1
+                    self.bullet_index += 1
             
             prev_bullet = bullet
 
