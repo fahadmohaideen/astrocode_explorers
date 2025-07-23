@@ -421,69 +421,60 @@ class Level:
         else:
             self.add_to_main_code(self.main_code, self.code_area, self.dragging, mouse_pos, 0, None)
         return
+
     def handle_events(self, event, mouse_pos):
-        a = 0
-        b = 0
-        # Handle mouse button down events
+        """Handles all user input, including clicks on command blocks and UI elements."""
+
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Check if clicking on command palette
+            if self.handle_command_clicks(self.main_code, mouse_pos):
+                return
+
+
             for block in self.code_blocks:
-                if block.rect:
-                    if block.rect.collidepoint(mouse_pos):
-                        self.dragging = {
-                            "type": block.cmd_type,
-                            "offset": (mouse_pos[0] - block.rect.x,
-                                       mouse_pos[1] - block.rect.y)
-                        }
-                        return
+                if block.rect and block.rect.collidepoint(mouse_pos):
+                    self.dragging = {
+                        "type": block.cmd_type,
+                        "offset": (mouse_pos[0] - block.rect.x, mouse_pos[1] - block.rect.y)
+                    }
+                    return
+
 
             if self.player.body_rect.collidepoint(mouse_pos):
                 self.code_editor = True
                 self.game_view = False
 
-        # Handle mouse button up (dropping commands)
+
         elif event.type == pygame.MOUSEBUTTONUP and self.dragging:
             if self.code_area.collidepoint(mouse_pos):
-                # Check if dropping onto an existing loop block
+                # Drop the dragged command into the code area.
                 self.handle_cmd_drop(self.main_code, mouse_pos, 0, None)
             self.dragging = None
 
-
         elif event.type == pygame.KEYDOWN:
-
             if self.editing_loop_cmd is not None:
-                Cmd = self.editing_loop_cmd
-
+                cmd = self.editing_loop_cmd
                 if event.key == pygame.K_RETURN:
-                    if Cmd.editing_text.isdigit() and int(Cmd.editing_text) > 0:
-                        Cmd.iterations = min(99, int(Cmd.editing_text))
+                    if cmd.editing_text.isdigit() and int(cmd.editing_text) > 0:
+                        cmd.iterations = min(99, int(cmd.editing_text))
                     self.editing_loop_cmd = None
                 elif event.key == pygame.K_BACKSPACE:
-                    Cmd.editing_text = Cmd.editing_text[:-1]
-                elif event.unicode.isdigit():
-                    if len(Cmd.editing_text) < 2:
-                        Cmd.editing_text += event.unicode
-                    else:
-                        Cmd.editing_text = ""
+                    cmd.editing_text = cmd.editing_text[:-1]
+                elif event.unicode.isdigit() and len(cmd.editing_text) < 2:
+                    cmd.editing_text += event.unicode
+                else:
+                    cmd.editing_text = ""  # Clear if invalid input
 
-        # Handle run button
         if self.run_button.is_clicked(mouse_pos, event):
             print("=== RUN BUTTON CLICKED ===")
             self.code_editor = False
             self.game_view = True
-
-            # Reset and create new generator each time
-            self.cmd_gen = self.execute_commands(self.main_code, None)
-
-            # Force immediate target update
+            self.cmd_gen = self.execute_commands(self.main_code, None)  # Create the command generator.
             self._update_nearest_alien()
             print(f"Ready to execute with target: {self.curr_nearest_alien}")
 
-        # Handle reset button
+
         if self.reset_button.is_clicked(mouse_pos, event):
             self.main_code = []
-            main_code_height = 0
-            #self.recalculate_code_positions()
 
     def execute_commands(self, cmd_list, parent_cmd):
         for cmd in cmd_list:
@@ -508,7 +499,7 @@ class Level:
                 elif cmd.cmd_type == "move_right":
                     self.player.pos += pygame.Vector2(80, 0)
                 elif cmd.cmd_type == "shoot":
-                    # ALWAYS update target before shooting
+
                     self._update_nearest_alien()
 
                     print(f"Attempting to shoot. Current target: {self.curr_nearest_alien}")
@@ -538,7 +529,7 @@ class Level:
                     else:
                         print("No valid target to shoot at - target is dead or inactive")
 
-    # Fixed handle_events method for Run button
+
 
 
     def _update_nearest_alien(self):
@@ -565,6 +556,25 @@ class Level:
             print(f"Targeting {self.curr_nearest_alien.name} at distance {min_dist:.2f}")
         else:
             print("No valid targets found")
+
+        # In levels/base_level.py, inside the Level class
+
+    def handle_command_clicks(self, cmd_list, mouse_pos):
+        """Recursively checks for clicks on special command UI elements."""
+        for cmd in cmd_list:
+            # Check if the user clicked on the bullet type selector
+            if cmd.cmd_type == "shoot" and cmd.shoot_type_rect and cmd.shoot_type_rect.collidepoint(mouse_pos):
+
+                current_index = cmd.bullet_types.index(cmd.shoot_bullet_type)
+                next_index = (current_index + 1) % len(cmd.bullet_types)
+                cmd.shoot_bullet_type = cmd.bullet_types[next_index]
+                return True
+
+
+            if cmd.nested_commands:
+                if self.handle_command_clicks(cmd.nested_commands, mouse_pos):
+                    return True
+        return False
 
 
     def add_to_main_code(self, cmd_list, cmd_rect, command_type, mouse_pos, i, parent_cmd):

@@ -1,4 +1,3 @@
-# Player class with movement and shooting
 import pygame
 import math
 import random
@@ -18,44 +17,26 @@ class Player:
         self.height = height
         self.pos = pygame.Vector2(self.x + self.width/2, self.y + self.height/2)
         self.offset_pos = self.pos
-        self.angle = angle  # Angle in degrees (0 = up, 90 = right, etc.)
+        self.angle = angle
         self.speed = speed
-        #self.body_rect = pygame.Rect(self.offset_pos.x, self.offset_pos.y, self.width, self.height)
-        self.bullets = []  # List of active Bullet objects
+        self.bullets = []
         self.max_bullets = 50
-        self.bullet_pool = []  # List of inactive Bullet objects for recycling
-        self.damage_dealt = False  # Flag to indicate if this player's bullet hit something
+        self.bullet_pool = []
+        self.damage_dealt = False
         self.health = PLAYER_MAX_HEALTH
-        self.last_hit_bullet_shape = None  # Stores the shape of the last bullet that hit this player
+        self.last_hit_bullet_shape = None
 
     def draw_player(self, surface, img):
-        """Draws the player (robot) on the given surface."""
-        #body_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.body_rect = pygame.Rect(self.offset_pos.x-self.width/2, self.offset_pos.y-self.height/2, self.width, self.height)
-        #pygame.draw.rect(surface, CYAN, self.body_rect)
         surface.blit(img, (self.offset_pos.x-self.width/2, self.offset_pos.y-self.height/2))
 
-        # Gun (rotated based on angle)
         gun_length = self.height * 1.5
         gun_center = (self.body_rect.centerx, self.body_rect.centery)
         end_x = gun_center[0] + gun_length * math.sin(math.radians(self.angle))
         end_y = gun_center[1] - gun_length * math.cos(math.radians(self.angle))
         pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
 
-    """def draw_health_bar(self, surface):
-        
-        bar_width = self.width * 2
-        bar_height = 10
-        bar_x = self.offset_pos.x + self.width // 2 - bar_width // 2
-        bar_y = self.offset_pos.y - bar_height - 5
-
-        pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = (self.health / PLAYER_MAX_HEALTH) * bar_width
-        pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
-        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)"""
-
     def draw_health_bar(self, surface):
-        """Draws the alien's health bar."""
         bar_width = self.width
         bar_height = 10
         bar_x = self.offset_pos.x - self.width/2
@@ -67,7 +48,6 @@ class Player:
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def _init_bullet(self, bullet, x, y, angle, width, height):
-        """Initializes properties of a bullet before it's fired."""
         angle_rad = math.radians(angle)
         gun_length = height * 1.5
 
@@ -78,11 +58,8 @@ class Player:
         bullet.active = True
 
     def shoot_bullet(self, bullet_type, direction, color):
-        """Shoots a bullet in the given direction"""
-        # Always spawn bullet at player's current world position
         spawn_pos = self.pos.copy()
 
-        # Create new bullet
         bullet = Bullet(
             x=spawn_pos.x,
             y=spawn_pos.y,
@@ -94,54 +71,45 @@ class Player:
         self.bullets.append(bullet)
         return bullet
 
-    # Fixed update_bullets method in player.py
-
     def update_bullets(self, targets, level_id, dt, camera_offset=None):
-        """Update player bullets and check collisions"""
-        # Convert single target to list if needed
-        if not isinstance(targets, (list, tuple)):
-            targets = [targets] if targets else []
+            if not isinstance(targets, (list, tuple)):
+                targets = [targets] if targets else []
 
-        for bullet in self.bullets[:]:
-            if not bullet.active:
-                continue
-
-            # Update position using world coordinates
-            bullet.pos.x += bullet.dx * dt
-            bullet.pos.y += bullet.dy * dt
-
-            # Remove bullets that go too far from player (world bounds)
-            player_to_bullet = bullet.pos - self.pos
-            if player_to_bullet.length() > 2000:  # 2000 pixel max range
-                bullet.active = False
-                continue
-
-            # Check collisions using world coordinates
-            for target in targets:  # No need for [:] since we already made a list
-                if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
+            for bullet in self.bullets[:]:
+                if not bullet.active:
                     continue
 
-                # Calculate distance between bullet and target centers
-                distance = bullet.pos.distance_to(target.pos)
-                collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
+                bullet.pos.x += bullet.dx * dt
+                bullet.pos.y += bullet.dy * dt
 
-                if distance < collision_threshold:
-                    print(f"HIT! Bullet hit {getattr(target, 'name', 'target')} at distance {distance:.2f}")
-                    print(f"Target health before: {getattr(target, 'health', 0)}")
-
+                player_to_bullet = bullet.pos - self.pos
+                if player_to_bullet.length() > 2000:
                     bullet.active = False
-                    target.health -= DAMAGE_PER_HIT
+                    continue
 
-                    print(f"Target health after: {target.health}")
+                for target in targets:
+                    if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
+                        continue
 
-                    if target.health <= 0:
-                        target.active = False
-                        print(f"{getattr(target, 'name', 'target')} destroyed!")
+                    distance = bullet.pos.distance_to(target.pos)
+                    collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
-                    break
+                    if distance < collision_threshold:
+                        alien_type = getattr(target, 'name', None)
+                        if bullet.bullet_type == alien_type:
+                            print(f"CORRECT HIT! Bullet '{bullet.bullet_type}' hit Alien '{alien_type}'.")
+                            target.health -= DAMAGE_PER_HIT
+                            print(f"Target health is now: {target.health}")
+                            if target.health <= 0:
+                                target.active = False
+                                print(f"Alien '{alien_type}' destroyed!")
+                        else:
+                            print(f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
 
-        # Remove inactive bullets
-        self.bullets = [bullet for bullet in self.bullets if bullet.active]
+                        bullet.active = False
+                        break
+
+            self.bullets = [bullet for bullet in self.bullets if bullet.active]
 
 
 

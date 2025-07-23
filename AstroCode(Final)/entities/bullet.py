@@ -1,4 +1,3 @@
-# Bullet class and types
 import pygame
 import math
 import random
@@ -11,7 +10,6 @@ from core.constants import (
 )
 
 
-# In bullet.py
 class Bullet:
     def __init__(self, x=0, y=0, dx=0, dy=0, bullet_type="", color=None, radius=12):
         self.pos = pygame.Vector2(x, y)
@@ -23,7 +21,6 @@ class Bullet:
         self.color = color or RED
         self.image = None
         self._load_bullet_image()
-        # Pre-render the image to optimize drawing
         if self.image:
             self.rendered_image = self._create_optimized_surface()
 
@@ -31,9 +28,8 @@ class Bullet:
         if not self.bullet_type:
             return
 
-        # Define desired display sizes for each bullet type
         bullet_sizes = {
-            "Alien Type A": 50,  # pixels
+            "Alien Type A": 50,
             "Alien Type B": 50,
             "Alien Type C": 50,
         }
@@ -48,23 +44,19 @@ class Bullet:
             try:
                 img_path = os.path.join(ASSETS_PATH, bullet_images[self.bullet_type])
                 if os.path.exists(img_path):
-                    # Load original image
                     original_img = pygame.image.load(img_path).convert_alpha()
 
-                    # Scale to desired size
                     target_size = bullet_sizes[self.bullet_type]
                     self.image = pygame.transform.scale(
                         original_img,
                         (target_size, target_size)
                     )
 
-                    # Update collision radius to match visual size
                     self.radius = target_size // 2
             except Exception as e:
                 print(f"Error loading bullet image: {e}")
 
     def _create_optimized_surface(self):
-        """Create a pre-rendered surface to prevent streaks"""
         surf = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
         surf.blit(self.image, (0, 0))
         return surf
@@ -80,7 +72,6 @@ class Bullet:
             pygame.draw.circle(surface, self.color, (int(pos.x), int(pos.y)), self.radius)
 
     def reactivate(self, x, y, direction):
-        """Reuse an existing bullet"""
         self.x = x
         self.y = y
         self.pos = pygame.Vector2(x, y)
