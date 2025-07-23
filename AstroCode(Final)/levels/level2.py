@@ -61,8 +61,10 @@ class Level2(Level):
                 continue
 
             alien_near = self.player.pos.distance_to(alien.pos) < 200
+
             self.var_dict[alien.name][0] = alien_near
             self.var_dict[alien.name][1] = alien if alien_near else None
+
             if alien_near:
                 self.var_dict["Alien near"][0] = True
                 self.curr_nearest_alien = alien
@@ -85,9 +87,10 @@ class Level2(Level):
                         cmd.condition_var = self._cycle_value(current_var, self.var_dict)
 
                 elif cmd.cmd_type == "shoot":
-                    if cmd.shoot_bullet_type_box and cmd.shoot_bullet_type_box.collidepoint(mouse_pos):
-                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
-                        cmd.shoot_bullet_type = copy.deepcopy(self.value_options[self.current_value_index])
+                    if cmd.shoot_type_rect and cmd.shoot_type_rect.collidepoint(mouse_pos):
+                        current_index = cmd.bullet_types.index(cmd.shoot_bullet_type)
+                        next_index = (current_index + 1) % len(cmd.bullet_types)
+                        cmd.shoot_bullet_type = cmd.bullet_types[next_index]
                         return True
 
                 elif cmd.is_loop():

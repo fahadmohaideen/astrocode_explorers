@@ -1,4 +1,3 @@
-
 import pygame
 import math
 import random
@@ -20,7 +19,6 @@ class Player:
         self.offset_pos = self.pos
         self.angle = angle
         self.speed = speed
-        #self.body_rect = pygame.Rect(self.offset_pos.x, self.offset_pos.y, self.width, self.height)
         self.bullets = []
         self.max_bullets = 50
         self.bullet_pool = []
@@ -37,18 +35,6 @@ class Player:
         end_x = gun_center[0] + gun_length * math.sin(math.radians(self.angle))
         end_y = gun_center[1] - gun_length * math.cos(math.radians(self.angle))
         pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
-
-    """def draw_health_bar(self, surface):
-        
-        bar_width = self.width * 2
-        bar_height = 10
-        bar_x = self.offset_pos.x + self.width // 2 - bar_width // 2
-        bar_y = self.offset_pos.y - bar_height - 5
-
-        pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = (self.health / PLAYER_MAX_HEALTH) * bar_width
-        pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
-        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)"""
 
     def draw_health_bar(self, surface):
         bar_width = self.width
@@ -86,43 +72,44 @@ class Player:
         return bullet
 
     def update_bullets(self, targets, level_id, dt, camera_offset=None):
-        if not isinstance(targets, (list, tuple)):
-            targets = [targets] if targets else []
+            if not isinstance(targets, (list, tuple)):
+                targets = [targets] if targets else []
 
-        for bullet in self.bullets[:]:
-            if not bullet.active:
-                continue
-
-            bullet.pos.x += bullet.dx * dt
-            bullet.pos.y += bullet.dy * dt
-
-            player_to_bullet = bullet.pos - self.pos
-            if player_to_bullet.length() > 2000:
-                bullet.active = False
-                continue
-
-            for target in targets:
-                if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
+            for bullet in self.bullets[:]:
+                if not bullet.active:
                     continue
-                distance = bullet.pos.distance_to(target.pos)
-                collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
-                if distance < collision_threshold:
-                    print(f"HIT! Bullet hit {getattr(target, 'name', 'target')} at distance {distance:.2f}")
-                    print(f"Target health before: {getattr(target, 'health', 0)}")
+                bullet.pos.x += bullet.dx * dt
+                bullet.pos.y += bullet.dy * dt
 
+                player_to_bullet = bullet.pos - self.pos
+                if player_to_bullet.length() > 2000:
                     bullet.active = False
-                    target.health -= DAMAGE_PER_HIT
+                    continue
 
-                    print(f"Target health after: {target.health}")
+                for target in targets:
+                    if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
+                        continue
 
-                    if target.health <= 0:
-                        target.active = False
-                        print(f"{getattr(target, 'name', 'target')} destroyed!")
+                    distance = bullet.pos.distance_to(target.pos)
+                    collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
-                    break
+                    if distance < collision_threshold:
+                        alien_type = getattr(target, 'name', None)
+                        if bullet.bullet_type == alien_type:
+                            print(f"CORRECT HIT! Bullet '{bullet.bullet_type}' hit Alien '{alien_type}'.")
+                            target.health -= DAMAGE_PER_HIT
+                            print(f"Target health is now: {target.health}")
+                            if target.health <= 0:
+                                target.active = False
+                                print(f"Alien '{alien_type}' destroyed!")
+                        else:
+                            print(f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
 
-        self.bullets = [bullet for bullet in self.bullets if bullet.active]
+                        bullet.active = False
+                        break
+
+            self.bullets = [bullet for bullet in self.bullets if bullet.active]
 
 
 

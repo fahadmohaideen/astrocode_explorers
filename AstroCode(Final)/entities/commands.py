@@ -6,22 +6,20 @@ from core.constants import (
     WHITE, BLACK, CYAN, ORANGE, BLUE, GREEN, FOR_LOOP_COLOR, CODE_FONT_SIZE, ORIGINAL_CMD_WIDTH, ORIGINAL_CMD_HEIGHT_LOOP
 )
 
-
 class Command:
     def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None,
-                 condition_op=None, condition_val=None, editing_condition_part=None, code_font=None, depth = 0, original_rect=None):
+                 condition_op=None, condition_val=None, editing_condition_part=None, code_font=None, depth=0,
+                 original_rect=None):
         self.cmd_type = cmd_type
         self.code_font = code_font
         self.iterations = iterations
         self.conditions = conditions if conditions is not None else {}
         self.nested_commands = nested_commands if nested_commands is not None else []
         self.rect = rect
-        self.condition_var = condition_var  # e.g. "health"
-        self.condition_op = condition_op  # e.g. ">"
-        self.condition_val = condition_val  # e.g. "50"
-        self.editing_condition_part = editing_condition_part  # Tracks which box is being edited
-        self.shoot_bullet_type = "Type A"  # Stores the shape (Circle, Square, Triangle) for shoot target
-        self.shoot_target_box_rect = None
+        self.condition_var = condition_var
+        self.condition_op = condition_op
+        self.condition_val = condition_val
+        self.editing_condition_part = editing_condition_part
         self.editing_text = ""
         self.depth = depth
         self.iter_box = None
@@ -33,6 +31,12 @@ class Command:
 
         self.color = self._get_color()
         self.text = self._get_text()
+
+        self.shoot_bullet_type = None
+        self.shoot_type_rect = None
+        if self.cmd_type == "shoot":
+            self.bullet_types = ["Alien Type A", "Alien Type B", "Alien Type C"]
+            self.shoot_bullet_type = self.bullet_types[0]
 
     def _get_color(self):
         colors = {
@@ -66,46 +70,39 @@ class Command:
         return self.cmd_type == "if_statement"
 
     def draw(self, surface, x, y, width, indent=0, is_nested=False):
-
-        #self.rect.y += main_code_height
-        # Draw the command itself
-        #self.rect.width = width
-        #self.rect.x += indent
         pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
         pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
 
-        if self.is_loop() or self.is_conditional() or self.cmd_type == "while_loop":
-            if self.is_loop():
-                self._draw_loop_header(surface)
-            elif self.is_conditional():
-                self._draw_conditional_header("if", surface)
-            else:
-                self._draw_regular_command(surface)
-
-            nested_y = y + ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, self.depth)
-            for nested_cmd in self.nested_commands:
-                nested_height = nested_cmd.draw(
-                    surface,
-                    x,
-                    nested_y,
-                    width - 10,
-                    indent + 5,
-                    True
-                )
-                nested_y += nested_height
-
-            self.rect.height = max(0, nested_y - y)
-            #self._draw_loop_header(surface)
-            #pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
-            #pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
-            #self._draw_loop_header(surface)
-        elif self.cmd_type == "shoot":
-            self._draw_shoot_command_content(surface)
-
+        if self.is_loop():
+            self._draw_loop_header(surface)
+        elif self.is_conditional():
+            self._draw_conditional_header("if", surface)
         else:
             self._draw_regular_command(surface)
 
-        #main_code_height += self.rect.height
+        if self.cmd_type == "shoot":
+            type_colors = {
+                "Alien Type A": (220, 80, 80),
+                "Alien Type B": (80, 220, 80),
+                "Alien Type C": (80, 80, 220)
+            }
+            color = type_colors.get(self.shoot_bullet_type, (150, 150, 150))
+
+            self.shoot_type_rect = pygame.Rect(self.rect.right - 85, self.rect.centery - 15, 80, 30)
+
+            pygame.draw.rect(surface, color, self.shoot_type_rect, border_radius=5)
+            type_text = self.code_font.render(self.shoot_bullet_type.replace("Alien ", ""), True, WHITE)
+            surface.blit(type_text, (self.shoot_type_rect.x + 5, self.shoot_type_rect.y + 5))
+
+        if self.is_loop() or self.is_conditional() or self.cmd_type == "while_loop":
+            nested_y = y + ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, self.depth)
+            for nested_cmd in self.nested_commands:
+                nested_height = nested_cmd.draw(
+                    surface, x, nested_y, width - 10, indent + 5, True
+                )
+                nested_y += nested_height
+
+            self.rect.height = max(ORIGINAL_CMD_HEIGHT_LOOP, nested_y - y)
 
         return self.rect.height
 
@@ -148,8 +145,8 @@ class Command:
         surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
         box_start_x = self.rect.x + (10/ORIGINAL_CMD_WIDTH)*self.rect.width + if_text.get_width() + (10/ORIGINAL_CMD_WIDTH)*self.rect.width
-        box_width = (90/ORIGINAL_CMD_WIDTH)*self.rect.width 
-        op_width = (30/ORIGINAL_CMD_WIDTH)*self.rect.width 
+        box_width = (90/ORIGINAL_CMD_WIDTH)*self.rect.width
+        op_width = (30/ORIGINAL_CMD_WIDTH)*self.rect.width
         box_height = 20
         box_y = self.rect.y + 5
 
@@ -159,21 +156,6 @@ class Command:
         if hasattr(self, 'condition_var') and self.condition_var:
             var_text = resized_code_font.render(self.condition_var, True, WHITE)
             surface.blit(var_text, (self.var_box.x + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, self.var_box.y + 3))
-
-        """self.op_box = pygame.Rect(box_start_x + box_width + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, box_y, op_width, box_height)
-        pygame.draw.rect(surface, BLACK, self.op_box)
-        pygame.draw.rect(surface, WHITE, self.op_box, 1)
-        if hasattr(self, 'condition_op') and self.condition_op:
-            op_text = self.code_font.render(self.condition_op, True, WHITE)
-            surface.blit(op_text, (self.op_box.x + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, self.op_box.y + 3))
-
-        self.val_box = pygame.Rect(box_start_x + box_width + op_width + (10/ORIGINAL_CMD_WIDTH)*self.rect.width, box_y, box_width, box_height)
-        pygame.draw.rect(surface, BLACK, self.val_box)
-        pygame.draw.rect(surface, WHITE, self.val_box, 1)
-        if hasattr(self, 'condition_val') and self.condition_val:
-            self.condition_val.x = self.val_box.centerx
-            self.condition_val.y = self.val_box.centery
-            self.condition_val.draw(surface)"""
 
         if hasattr(self, 'editing_condition_part'):
             cursor_box = {
@@ -208,4 +190,3 @@ class Command:
             type_text = resized_code_font.render(self.shoot_bullet_type, True, WHITE)
             type_rect = type_text.get_rect(center=self.shoot_bullet_type_box.center)
             surface.blit(type_text, type_rect)
-            
