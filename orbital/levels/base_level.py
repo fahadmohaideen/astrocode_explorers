@@ -278,11 +278,11 @@ class Level:
         target = self.aliens[0] if self.aliens else None
         self.player.update_bullets(target, self.level_id, dt)
         
-        self.update_camera()
+        #self.update_camera()
         
-        self.update_commands(dt)
+        #self.update_commands(dt)
         
-        self.check_level_completion()
+        #self.check_level_completion()
         """"if self.level_id >= 3:
             self.alien.update_bullets(self.player, self.level_id, dt)
         for bullet in self.alien.bullets:
