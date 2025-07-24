@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+import os
 from entities.bullet import Bullet
 from core.constants import (
     WIDTH, HEIGHT, ORANGE, BLUE, GREEN, RED, WHITE, CYAN,
@@ -25,16 +26,49 @@ class Player:
         self.damage_dealt = False
         self.health = PLAYER_MAX_HEALTH
         self.last_hit_bullet_shape = None
+        self.is_dying = False
+        self.death_animation_timer = 0
+        self.death_animation_duration = 90
+        try:
+            assets_path = os.path.join("levels", "assets")
+            self.gun_image_original = pygame.image.load(os.path.join(assets_path, "gun.png")).convert_alpha()
+            self.gun_image_original = pygame.transform.scale(self.gun_image_original, (60, 20))
+        except Exception as e:
+            print(f"Error loading gun.png: {e}")
+            self.gun_image_original = None
 
     def draw_player(self, surface, img):
-        self.body_rect = pygame.Rect(self.offset_pos.x-self.width/2, self.offset_pos.y-self.height/2, self.width, self.height)
-        surface.blit(img, (self.offset_pos.x-self.width/2, self.offset_pos.y-self.height/2))
+        if self.is_dying:
+            self.death_animation_timer += 1
+            if self.death_animation_timer > self.death_animation_duration:
+                self.death_animation_timer = self.death_animation_duration
 
-        gun_length = self.height * 1.5
-        gun_center = (self.body_rect.centerx, self.body_rect.centery)
-        end_x = gun_center[0] + gun_length * math.sin(math.radians(self.angle))
-        end_y = gun_center[1] - gun_length * math.cos(math.radians(self.angle))
-        pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
+            progress = self.death_animation_timer / self.death_animation_duration
+            alpha = int(255 * (1 - progress))
+            scale = 1 - progress
+
+            faded_img = img.copy()
+            faded_img.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
+            scaled_img = pygame.transform.scale(
+                faded_img,
+                (int(self.width * scale), int(self.height * scale))
+            )
+
+
+            death_rect = scaled_img.get_rect(center=self.offset_pos)
+            surface.blit(scaled_img, death_rect)
+            return
+
+
+        self.body_rect = pygame.Rect(self.offset_pos.x - self.width / 2, self.offset_pos.y - self.height / 2,
+                                     self.width, self.height)
+        surface.blit(img, self.body_rect.topleft)
+
+        if self.gun_image_original:
+            rotated_gun = pygame.transform.rotate(self.gun_image_original, self.angle)
+            gun_rect = rotated_gun.get_rect(center=self.body_rect.center)
+            surface.blit(rotated_gun, gun_rect.topleft)
+
 
     def draw_health_bar(self, surface):
         bar_width = self.width
@@ -43,7 +77,7 @@ class Player:
         bar_y = self.offset_pos.y - self.height/2 - bar_height - 5
 
         pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = (self.health / TARGET_MAX_HEALTH) * bar_width
+        health_width = (self.health / PLAYER_MAX_HEALTH) * bar_width
         pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
@@ -72,29 +106,30 @@ class Player:
         return bullet
 
     def update_bullets(self, targets, level_id, dt, camera_offset=None):
-            if not isinstance(targets, (list, tuple)):
-                targets = [targets] if targets else []
+        if not isinstance(targets, (list, tuple)):
+            targets = [targets] if targets else []
 
-            for bullet in self.bullets[:]:
-                if not bullet.active:
+        for bullet in self.bullets[:]:
+            if not bullet.active:
+                continue
+
+            bullet.pos.x += bullet.dx * dt
+            bullet.pos.y += bullet.dy * dt
+
+            player_to_bullet = bullet.pos - self.pos
+            if player_to_bullet.length() > 2000:
+                bullet.active = False
+                continue
+
+            for target in targets:
+                if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
                     continue
 
-                bullet.pos.x += bullet.dx * dt
-                bullet.pos.y += bullet.dy * dt
+                distance = bullet.pos.distance_to(target.pos)
+                collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
-                player_to_bullet = bullet.pos - self.pos
-                if player_to_bullet.length() > 2000:
-                    bullet.active = False
-                    continue
-
-                for target in targets:
-                    if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
-                        continue
-
-                    distance = bullet.pos.distance_to(target.pos)
-                    collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
-
-                    if distance < collision_threshold:
+                if distance < collision_threshold:
+                    if not getattr(target, 'shielded', False):
                         alien_type = getattr(target, 'name', None)
                         if bullet.bullet_type == alien_type:
                             print(f"CORRECT HIT! Bullet '{bullet.bullet_type}' hit Alien '{alien_type}'.")
@@ -106,10 +141,14 @@ class Player:
                         else:
                             print(f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
 
-                        bullet.active = False
-                        break
+                    else:
+                        print(f"HIT FAILED! Alien '{getattr(target, 'name', 'Unknown')}' shield is active.")
 
-            self.bullets = [bullet for bullet in self.bullets if bullet.active]
+
+                    bullet.active = False
+                    break
+
+        self.bullets = [bullet for bullet in self.bullets if bullet.active]
 
 
 

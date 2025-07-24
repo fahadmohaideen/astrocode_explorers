@@ -1,4 +1,3 @@
-
 import pygame
 import math
 import collections
@@ -50,6 +49,14 @@ class Level:
         self.commands_area = pygame.Rect(10, 10, 250, 700)
         self.run_button = Button(625, 725, 100, 40, "Run", GREEN, (0, 200, 0), self.menu_font)
         self.reset_button = Button(375, 725, 100, 40, "Reset", RED, (200, 0, 0), self.menu_font)
+        button_size = 30
+        margin = 10
+        self.exit_button_rect = pygame.Rect(
+            self.code_area.right - button_size - margin,  # X position
+            self.code_area.top + margin,  # Y position
+            button_size,  # Width
+            button_size  # Height
+        )
         self.level_completed = False
         self.current_popup = None
         self.level_state = 1
@@ -382,6 +389,11 @@ class Level:
     def handle_events(self, event, mouse_pos):
 
         if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.code_editor and self.exit_button_rect.collidepoint(mouse_pos):
+                self.code_editor = False
+                self.game_view = True
+                print("Command panel closed.")
+                return
             if self.handle_command_clicks(self.main_code, mouse_pos):
                 return
 
@@ -663,11 +675,11 @@ class Level:
 
                 surface.blit(scaled_img, pos)
             elif alien.active and alien.health > 0:
-                alien.draw_player(surface, self.var_dict[alien.name][2])
+                alien.draw(surface, self.var_dict[alien.name][2])
 
     def draw_popups(self, screen, mouse_pos, event):
         if self.level_completed and self.current_popup == "victory":
-            popup_rect = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 100, 400, 200)
+            popup_rect = pygame.Rect(WIDTH // 2 - 300, HEIGHT // 2 - 100, 500, 300)
             pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
             pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
 
@@ -678,7 +690,7 @@ class Level:
             stats_surface = self.menu_font.render(stats_text, True, WHITE)
             screen.blit(stats_surface, (popup_rect.centerx - stats_surface.get_width() // 2, popup_rect.centery - 20))
 
-            continue_btn = Button(popup_rect.centerx - 75, popup_rect.bottom - 60, 150, 40,
+            continue_btn = Button(popup_rect.centerx - 75, popup_rect.bottom - 60, 160, 45,
                                   "Continue", BLUE, CYAN, self.menu_font)
             continue_btn.draw(screen)
             if continue_btn.is_clicked(mouse_pos, event):
@@ -690,9 +702,12 @@ class Level:
         overlay.fill(DARK_OVERLAY_COLOR)
         surface.blit(overlay, (0, 0))
         self.draw_code_blocks(surface)
-
         self.run_button.draw(surface)
         self.reset_button.draw(surface)
+        pygame.draw.rect(surface, RED, self.exit_button_rect)
+        pygame.draw.line(surface, WHITE, self.exit_button_rect.topleft, self.exit_button_rect.bottomright, 4)
+        pygame.draw.line(surface, WHITE, self.exit_button_rect.topright, self.exit_button_rect.bottomleft, 4)
+
 
     def draw_all(self, screen, mouse_pos, event):
         pygame.draw.rect(screen, GRAY, self.battlefield, border_radius=5)
@@ -701,7 +716,7 @@ class Level:
         #self.alien.pos = pygame.Vector2(self.alien.x, self.alien.y)
         #self.player.pos = pygame.Vector2(self.player.x, self.player.y)
         for alien in self.aliens:
-            alien.draw_player(screen)
+            alien.draw(screen)
         #self.alien.draw_player(screen)
         self.draw_code_blocks(screen)
         self.run_button.draw(screen)
@@ -734,6 +749,9 @@ class Level:
             self.current_popup = "victory"
 
         self.player.offset_pos = self.player.pos - self.camera_offset
+        if self.curr_nearest_alien and self.curr_nearest_alien.active:
+            direction = self.curr_nearest_alien.pos - self.player.pos
+            self.player.angle = math.degrees(math.atan2(-direction.y, direction.x))
 
         self.draw_disappearing_aliens(screen)
 
@@ -754,10 +772,7 @@ class Level:
         self.draw_alien_dir()
 
         self.draw_elimination_counter(screen)
+        self.draw_popups(screen, mouse_pos, event)
 
-        if self.curr_nearest_alien:
-            start_pos = self.player.offset_pos
-            end_pos = self.curr_nearest_alien.pos - self.camera_offset
-            pygame.draw.line(screen, (255, 255, 0), start_pos, end_pos, 1)
 
 
