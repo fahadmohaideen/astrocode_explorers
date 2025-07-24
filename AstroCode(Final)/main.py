@@ -1,4 +1,3 @@
-# Entry point for AstroCode
 import pygame
 import sys
 import time
@@ -125,6 +124,11 @@ while running:
 
 
     elif current_state == STATE_LEVEL2:
+        if level2.proceed_to_level3:
+            current_state = STATE_LEVEL3
+            level3.reset_level(fonts['code_font'], fonts['title_font'], fonts['menu_font'])
+            level2.proceed_to_level3 = False  # Reset the flag for next time
+            continue
         if level2.game_view:
             if not level2.moving:
                 walk_frame_index = 0
@@ -147,6 +151,13 @@ while running:
 
 
     elif current_state == STATE_LEVEL3:
+        try:
+            next(level3.cmd_gen)
+        except (StopIteration, TypeError):
+            pass
+        keys = pygame.key.get_pressed()
+        level3.update(dt, keys)
+
         if level3.game_view:
             if not level3.moving:
                 walk_frame_index = 0
@@ -159,12 +170,6 @@ while running:
         if level3.code_editor:
             level3.draw_game(screen, mouse_pos, event, walk_frame_index)
             level3.draw_panel(screen)
-        try:
-            next(level3.cmd_gen)
-        except (StopIteration, TypeError):
-            pass
-        keys = pygame.key.get_pressed()
-        level3.update(dt, keys)
 
     elif current_state == STATE_LEVEL4:
         #levelsss4.var_dict["key_press"] = None
@@ -238,11 +243,6 @@ while running:
                 current_state = STATE_LEVELS
                 level4.exit_to_levels = False
 
-    # Update
-    def update(self, dt):
-        """Update game state"""
-        self.check_bullet_alien_collisions()
-        # ... other update code ...
 
     pygame.display.flip()
     clock.tick(FPS)

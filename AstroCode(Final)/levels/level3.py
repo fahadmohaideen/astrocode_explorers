@@ -1,7 +1,7 @@
-# Level 3 logic
 from levels.level2 import Level2
-from core.constants import WHITE, FOR_LOOP_COLOR
+from core.constants import WHITE, FOR_LOOP_COLOR, WIDTH, HEIGHT, DARK_GRAY, RED, BLUE, CYAN, DAMAGE_PER_HIT
 import pygame
+from ui.button import Button
 import copy
 import os
 
@@ -26,71 +26,84 @@ class Level3(Level2):
         self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
         self.commands["if_statement"] = {"color": FOR_LOOP_COLOR, "text": "if"}
         super()._init_commands()
+        for alien in self.aliens:
+            alien.shielded = True
+
 
     def update(self, dt, keys):
-        super().update(dt, keys)
+        if self.player.health <= 0 and not self.player.is_dying:
+            self.player.is_dying = True
+            print("Player has been defeated!")
+            return
 
+        if self.player.is_dying:
+            return
+
+        super().update(dt, keys)
         for alien in self.aliens:
             if alien.active:
+                alien.update_shield()
                 alien.shoot_at_player(self.player, dt)
-                alien.update_bullets(self.player, 0, dt)
+                alien.update_bullets(self.player, self.level_id, dt)
 
-    """def handle_events(self, event, mouse_pos):
-        # Handle condition boxes differently in Level 3
-        if event.type == pygame.MOUSEBUTTONDOWN:
+    def draw_popups(self, screen, mouse_pos, event):
+            """Handle drawing the failure popup."""
 
-                self._process_command_clicks_recursive(mouse_pos, self.main_code)
+            if self.player.is_dying and self.player.death_animation_timer >= self.player.death_animation_duration:
+                self.current_popup = "failure"
+
+            if self.current_popup == "failure":
+                popup_rect = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 100, 400, 200)
+                pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
+                pygame.draw.rect(screen, RED, popup_rect, 2, border_radius=10)
 
 
-        super().handle_events(event, mouse_pos)
+                text = self.title_font.render("Mission Failed!", True, RED)
+                screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 30))
+
+
+                menu_btn = Button(popup_rect.centerx - 100, popup_rect.bottom - 100, 200, 50,
+                                  "Return to Menu", BLUE, CYAN, self.menu_font)
+                menu_btn.draw(screen)
+                if menu_btn.is_clicked(mouse_pos, event):
+                    self.exit_to_levels = True
+
+            else:
+                super().draw_popups(screen, mouse_pos, event)
 
     def _process_command_clicks_recursive(self, mouse_pos, commands_list):
-        
+        """
+        Recursively processes mouse clicks on commands, including the for_loop iteration box.
+        """
         for cmd in commands_list:
             # Check if the click is within the main rectangle of the command
             if cmd.rect and cmd.rect.collidepoint(mouse_pos):
                 # Handle Conditional Command (if_statement) clicks
                 if cmd.is_conditional():
-                    # _get_condition_boxes needs to be robust enough to work for any cmd
-                    # regardless of nesting level, relying on cmd.rect.
                     var_box, op_box, val_box = cmd.var_box, cmd.op_box, cmd.val_box
-
                     if var_box.collidepoint(mouse_pos):
-                        # Cycle through variables
                         current_var = getattr(cmd, 'condition_var', None)
                         cmd.condition_var = self._cycle_value(current_var, self.var_dict)
-                        #cmd.editing_condition_part = None  # Not typing, just cycling
+                        return True
 
-                    elif op_box.collidepoint(mouse_pos):
-                        # Cycle through operators
-                        current_op = getattr(cmd, 'condition_op', None)
-                        cmd.condition_op = self._cycle_value(current_op, self.op_dict)
-                        #cmd.editing_condition_part = None  # Not typing, just cycling
-
-                    elif val_box.collidepoint(mouse_pos):
-                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
-                        cmd.condition_val = copy.deepcopy(self.value_options[self.current_value_index])
-                        return True  # Click handled
-
-                # Handle 'Shoot' Command clicks (specific to Level 3)
                 elif cmd.cmd_type == "shoot":
-                    if cmd.shoot_target_box_rect and cmd.shoot_target_box_rect.collidepoint(mouse_pos):
-                        self.current_value_index = (self.current_value_index + 1) % len(self.value_options)
-                        cmd.shoot_target_shape = copy.deepcopy(self.value_options[self.current_value_index])
-                        return True  # Click handled
+                    if cmd.shoot_type_rect and cmd.shoot_type_rect.collidepoint(mouse_pos):
+                        current_index = cmd.bullet_types.index(cmd.shoot_bullet_type)
+                        next_index = (current_index + 1) % len(cmd.bullet_types)
+                        cmd.shoot_bullet_type = cmd.bullet_types[next_index]
+                        return True
 
                 elif cmd.is_loop():
-                    if cmd.iter_box.collidepoint(mouse_pos):
-                        self.editing_loop_cmd = cmd
-                        cmd.editing_text = ""
+                    if cmd.iter_box and cmd.iter_box.collidepoint(mouse_pos):
+                        cmd.iterations += 1
+                        if cmd.iterations > 4:
+                            cmd.iterations = 1
+                        print(f"Loop iterations set to: {cmd.iterations}")
                         return True
-                    self.editing_loop_cmd = None
 
-
-            # Recursively check nested commands if this command is a loop or conditional
             if cmd.is_loop() or cmd.is_conditional() or cmd.cmd_type == "while_loop":
-                # If a click is handled by a nested command, propagate True
                 if self._process_command_clicks_recursive(mouse_pos, cmd.nested_commands):
-                    return True  # Click handled by a nested command
+                    return True
 
-        return False  # No click handled in this list or its descendants"""
+        return False
+

@@ -1,137 +1,98 @@
-# Alien logic and bullets
 import pygame
 import math
 import random
-from entities.player import Player, Bullet
-from core.constants import ALIEN_MAX_HEALTH, TARGET_MAX_HEALTH
-
+from entities.bullet import Bullet
 from core.constants import (
-
-
-    WIDTH, HEIGHT, ORANGE, BLUE, GREEN, RED, WHITE, CYAN,
-    BULLET_RADIUS, BULLET_SPEED, PLAYER_MAX_HEALTH,
-    TARGET_MAX_HEALTH, DAMAGE_PER_HIT, ALIEN_TYPES,
-    ALIEN_MAX_HEALTH  # Make sure this is defined in constants.py
+    WIDTH, HEIGHT, RED, GREEN, WHITE,
+    ALIEN_MAX_HEALTH, BULLET_SPEED, DAMAGE_PER_HIT, ALIEN_TYPES
 )
 
-
-class Alien(Player):
+class Alien:
     def __init__(self, x, y, name):
-        super().__init__()
-        self.x = x
-        self.y = y
         self.width = 60
         self.height = 60
-        self.size = 60
-        self.pos = pygame.Vector2(self.x + self.width / 2, self.y + self.height / 2)
+        self.pos = pygame.Vector2(x + self.width / 2, y + self.height / 2)
         self.offset_pos = self.pos
-        self.angle = 90
-        self.active = True  # New active state flag
-        self.health = ALIEN_MAX_HEALTH
+        self.active = True
         self.name = name
-        self.image = None
-        self.shape_options = ["circle", "square", "triangle"]
-        self.prev_time = 0
+        self.health = ALIEN_MAX_HEALTH
+        self.prev_time = pygame.time.get_ticks() + random.randint(0, 500)
         self.bullets = []
-        self.bullet_pool = []
-        self.shoot_cooldown = 1000  # ms between shots
-        self.detection_range = 500  # pixels
+        self.shoot_cooldown = 1000
+        self.detection_range = 2500
         self.disappearing = False
         self.disappear_timer = 0
-        self.disappear_duration = 30  # frames for disappearance effect
+        self.disappear_duration = 30
+        self.shielded = False
+        self.shield_timer = pygame.time.get_ticks()
+        self.shield_down_duration = 2000
+        self.shield_up_duration = 5000
 
-    def update(self, dt, player=None):
-        """Update alien state and bullets"""
-        # Update bullet positions
-        for bullet in self.bullets:
-            if bullet.active:
-                bullet.update(dt)
-            else:
-                self.bullet_pool.append(bullet)
+    def update_shield(self):
+        current_time = pygame.time.get_ticks()
+        if self.shielded and (current_time - self.shield_timer > self.shield_up_duration):
+            self.shielded = False
+            self.shield_timer = current_time
+        elif not self.shielded and (current_time - self.shield_timer > self.shield_down_duration):
+            self.shielded = True
+            self.shield_timer = current_time
 
-        # Clean up inactive bullets
+    def update_bullets(self, player, level_id, dt):
+        for bullet in self.bullets[:]:
+            if not bullet.active:
+                continue
+            bullet.pos.x += bullet.dx * dt
+            bullet.pos.y += bullet.dy * dt
+            if not (-100 < bullet.pos.x < WIDTH + 100 and -100 < bullet.pos.y < HEIGHT + 100):
+                bullet.active = False
+                continue
+            if not player.is_dying:
+                distance = bullet.pos.distance_to(player.pos)
+                collision_threshold = player.width / 2 + bullet.radius
+                if distance < collision_threshold:
+                    player.health -= DAMAGE_PER_HIT
+                    bullet.active = False
         self.bullets = [b for b in self.bullets if b.active]
 
-        # Check if alien is defeated
-        if self.health <= 0:
-            self.active = False
-
     def shoot_bullet(self, target_pos, color):
-        """Shoot a bullet toward target position"""
         if not self.active:
-            return None
-
+            return
         direction = (target_pos - self.pos).normalize()
-
-        # Reuse bullet from pool or create new one
-        if self.bullet_pool:
-            bullet = self.bullet_pool.pop()
-            bullet.reactivate(self.pos.x, self.pos.y, direction)
-        else:
-            bullet = Bullet(
-                self.pos.x, self.pos.y,
-                direction.x * BULLET_SPEED,
-                direction.y * BULLET_SPEED,
-                bullet_type=self.name,  # Use alien's own name as bullet type
-                color=color
-            )
-
+        bullet = Bullet(self.pos.x, self.pos.y, direction.x * BULLET_SPEED, direction.y * BULLET_SPEED,
+                        bullet_type=self.name, color=color)
         self.bullets.append(bullet)
-        return bullet
 
     def shoot_at_player(self, player, dt):
-        """Conditional shooting at player"""
         if not self.active or not player:
             return
-
         curr_time = pygame.time.get_ticks()
         distance_to_player = (player.pos - self.pos).length()
-
         if (curr_time - self.prev_time >= self.shoot_cooldown and
                 distance_to_player < self.detection_range):
             self.shoot_bullet(player.pos, ALIEN_TYPES.get(self.name, RED))
             self.prev_time = curr_time
 
     def draw_health_bar(self, surface):
-        """Draw health bar only if alien is active"""
         if not self.active:
             return
-
         bar_width = self.width
         bar_height = 8
         bar_x = self.offset_pos.x - self.width / 2
         bar_y = self.offset_pos.y - self.height / 2 - 15
-
-        # Background
         pygame.draw.rect(surface, RED, (bar_x, bar_y, bar_width, bar_height))
-
-        # Health level
         health_width = (self.health / ALIEN_MAX_HEALTH) * bar_width
         pygame.draw.rect(surface, GREEN, (bar_x, bar_y, health_width, bar_height))
-
-        # Border
         pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
 
     def draw(self, surface, image=None):
-        """Draw alien only if active"""
         if not self.active:
             return
-
-        # Use provided image or fallback to self.image
-        draw_image = image if image is not None else self.image
-
-        if draw_image:
-            # Draw using image if available
-            alien_rect = draw_image.get_rect(center=self.offset_pos)
-            surface.blit(draw_image, alien_rect)
-        else:
-            # Fallback rectangle drawing
-            pygame.draw.rect(
-                surface,
-                ALIEN_TYPES.get(self.name, RED),
-                (self.offset_pos.x - self.width / 2,
-                 self.offset_pos.y - self.height / 2,
-                 self.width, self.height)
-            )
-
+        if image:
+            alien_rect = image.get_rect(center=self.offset_pos)
+            surface.blit(image, alien_rect)
+        if self.shielded:
+            shield_radius = self.width / 2 + 10
+            shield_surface = pygame.Surface((shield_radius * 2, shield_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(shield_surface, (0, 100, 255, 100), (shield_radius, shield_radius), shield_radius)
+            surface.blit(shield_surface, (self.offset_pos.x - shield_radius, self.offset_pos.y - shield_radius))
         self.draw_health_bar(surface)

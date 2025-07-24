@@ -1,5 +1,8 @@
 from levels.base_level import Level
-from core.constants import FOR_LOOP_COLOR, WHITE
+from core.constants import (
+    WIDTH, HEIGHT, ORANGE, BLUE, GREEN, RED, WHITE, CYAN,
+    BULLET_RADIUS, BULLET_SPEED, PLAYER_MAX_HEALTH, TARGET_MAX_HEALTH, DAMAGE_PER_HIT, FOR_LOOP_COLOR, DARK_GRAY
+)
 import pygame
 import copy
 import os
@@ -25,6 +28,9 @@ class Level2(Level):
         ]
         self.current_value_index = -1
         self.shoot_index = -1
+        self.proceed_to_level3 = False
+        self.popup_start_time = 0
+        self.popup_duration_ms = 3000
         self.spawn_aliens(3)
         self.load_assets()
         super()._init_commands()
@@ -54,7 +60,12 @@ class Level2(Level):
 
         self.player.pos += movement
 
+
         self.var_dict["Alien near"][0] = False
+        for alien_type in self.value_options:
+            if alien_type in self.var_dict:
+                self.var_dict[alien_type][0] = False
+
         for alien in self.aliens[:]:
             if alien.health <= 0 and alien.active:
                 alien.active = False
@@ -62,19 +73,45 @@ class Level2(Level):
 
             alien_near = self.player.pos.distance_to(alien.pos) < 200
 
-            self.var_dict[alien.name][0] = alien_near
-            self.var_dict[alien.name][1] = alien if alien_near else None
 
             if alien_near:
+                self.var_dict[alien.name][0] = True
+                self.var_dict[alien.name][1] = alien
                 self.var_dict["Alien near"][0] = True
-                self.curr_nearest_alien = alien
 
         active_aliens = [alien for alien in self.aliens if alien.active]
         self.player.update_bullets(active_aliens, self.level_id, dt)
 
-        if len([a for a in self.aliens if not a.active]) >= 3 and not self.level_completed:
+        if self.aliens_eliminated >= self.total_aliens_to_eliminate and not self.level_completed:
             self.level_completed = True
-            self.current_popup = "victory"
+            self.current_popup = "level2_victory"
+
+    def draw_popups(self, screen, mouse_pos, event):
+        """Handle the custom Level 2 victory popup and then call the parent method."""
+        if self.current_popup == "level2_victory":
+
+            if self.popup_start_time == 0:
+                self.popup_start_time = pygame.time.get_ticks()
+
+            # Draw the popup background
+            popup_rect = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 100, 400, 200)
+            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
+            pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
+
+            # Draw the success message
+            title_text = self.title_font.render("Level 2 Complete!", True, GREEN)
+            screen.blit(title_text, (popup_rect.centerx - title_text.get_width() // 2, popup_rect.top + 30))
+
+            subtitle_text = self.menu_font.render("Proceeding to Level 3...", True, WHITE)
+            screen.blit(subtitle_text, (popup_rect.centerx - subtitle_text.get_width() // 2, popup_rect.centery + 10))
+
+            # Check if the timer has finished
+            if pygame.time.get_ticks() - self.popup_start_time > self.popup_duration_ms:
+                self.proceed_to_level3 = True
+
+            return
+
+        super().draw_popups(screen, mouse_pos, event)
 
     def _process_command_clicks_recursive(self, mouse_pos, commands_list):
         for cmd in commands_list:

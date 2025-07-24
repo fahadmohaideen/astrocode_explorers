@@ -1,4 +1,3 @@
-# Level 1 logic
 from levels.base_level import Level
 import pygame
 from entities.alien import Alien
