@@ -22,11 +22,18 @@ class Level3(Level2):
         ]
         self.current_value_index = -1
         self.shoot_index = -1"""
+        self.run_click_limit = 5
+        self.run_clicks_used = 0
         self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
         self.commands["if_statement"] = {"color": FOR_LOOP_COLOR, "text": "if"}
         super()._init_commands()
         for alien in self.aliens:
             alien.shielded = True
+        self.load_assets()
+
+    def load_assets(self):
+
+        super(Level2, self).load_assets()
 
 
     def update(self, dt, keys):
@@ -46,6 +53,23 @@ class Level3(Level2):
                 alien.update_bullets(self.player, self.level_id, dt)
 
     def draw_popups(self, screen, mouse_pos, event):
+
+            if self.current_popup != "failure":
+                remaining = self.run_click_limit - self.run_clicks_used
+                counter_text = f"Run Attempts Remaining: {remaining}"
+
+                font = self.menu_font
+                text_surface = font.render(counter_text, True, WHITE)
+
+
+                text_rect = text_surface.get_rect(topright=(WIDTH - 540, 100))
+
+
+                bg_rect = text_rect.inflate(20, 10)
+                pygame.draw.rect(screen, DARK_GRAY, bg_rect, border_radius=5)
+                pygame.draw.rect(screen, CYAN, bg_rect, 2, border_radius=5)
+
+                screen.blit(text_surface, text_rect)
 
             if self.player.is_dying and self.player.death_animation_timer >= self.player.death_animation_duration:
                 self.current_popup = "failure"
@@ -100,3 +124,21 @@ class Level3(Level2):
 
         return False
 
+    def handle_events(self, event, mouse_pos):
+        if self.run_button.is_clicked(mouse_pos, event):
+            if self.run_clicks_used < self.run_click_limit:
+
+                self.run_clicks_used += 1
+                print(f"Run button clicked. Uses remaining: {self.run_click_limit - self.run_clicks_used}")
+
+                self.code_editor = False
+                self.game_view = True
+                self.cmd_gen = self.execute_commands(self.main_code, None)
+                self._update_nearest_alien()
+            else:
+                print("Run limit exceeded! Mission failed.")
+                self.current_popup = "failure"
+            return
+
+
+        super().handle_events(event, mouse_pos)

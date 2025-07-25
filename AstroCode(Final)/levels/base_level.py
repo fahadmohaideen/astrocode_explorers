@@ -198,7 +198,11 @@ class Level:
         for alien in self.aliens:
             alien_map_x = map_pos[0] + (alien.pos.x / (WIDTH + 1000)) * map_size
             alien_map_y = map_pos[1] + (alien.pos.y / (HEIGHT + 1000)) * map_size
-            pygame.draw.circle(screen, ALIEN_TYPES[alien.name],
+            dot_color = ALIEN_TYPES[alien.name]
+
+            if self.level_id == 2:
+                dot_color = GREEN
+            pygame.draw.circle(screen, dot_color,
                                (int(alien_map_x), int(alien_map_y)), 3)
 
     def draw_alien_dir(self):
@@ -209,9 +213,15 @@ class Level:
                     -100 < alien_screen_pos.y < HEIGHT + 100):
                 dir_vec = (alien.pos - self.player.pos).normalize()
                 indicator_pos = self.player.offset_pos + dir_vec * 200
-                pygame.draw.circle(screen, ALIEN_TYPES[alien.name],
+                indicator_color = ALIEN_TYPES[alien.name]
+
+                if self.level_id == 2:
+                    indicator_color = WHITE
+
+                # Draw arrow pointing to alien
+                pygame.draw.circle(screen, indicator_color,
                                    (int(indicator_pos.x), int(indicator_pos.y)), 10)
-                pygame.draw.line(screen, ALIEN_TYPES[alien.name],
+                pygame.draw.line(screen, indicator_color,
                                  (self.player.offset_pos.x, self.player.offset_pos.y),
                                  (indicator_pos.x, indicator_pos.y), 2)
                 continue
@@ -466,15 +476,25 @@ class Level:
                 elif cmd.cmd_type == "move_right":
                     self.player.pos += pygame.Vector2(80, 0)
                 elif cmd.cmd_type == "shoot":
-                    self._update_nearest_alien()
+                    direction = None
 
-                    print(f"Attempting to shoot. Current target: {self.curr_nearest_alien}")
-                    active_count = len([a for a in self.aliens if a.active and a.health > 0])
-                    print(f"Active aliens remaining: {active_count}")
 
-                    if self.curr_nearest_alien and self.curr_nearest_alien.active and self.curr_nearest_alien.health > 0:
-                        direction = (self.curr_nearest_alien.pos - self.player.pos).normalize()
+                    if self.level_id == 1:
 
+                        direction = pygame.Vector2(1, 0)
+                        print("Level 1: Firing straight right.")
+
+
+                    else:
+                        self._update_nearest_alien()
+                        print(f"Attempting to shoot. Current target: {self.curr_nearest_alien}")
+                        if self.curr_nearest_alien and self.curr_nearest_alien.active and self.curr_nearest_alien.health > 0:
+                            direction = (self.curr_nearest_alien.pos - self.player.pos).normalize()
+                        else:
+                            print("No valid target to shoot at - target is dead or inactive")
+
+
+                    if direction:
                         bullet_type = cmd.shoot_bullet_type if hasattr(cmd, 'shoot_bullet_type') else "Player"
                         color = ALIEN_TYPES.get(bullet_type, ORANGE)
 
@@ -483,14 +503,11 @@ class Level:
                             direction=direction,
                             color=color
                         )
+                        print(f"Bullet created at {bullet.pos} with direction {direction}")
 
-                        print(f"Bullet created at {bullet.pos} targeting {self.curr_nearest_alien.name}")
-                        print(f"Direction vector: {direction}")
 
                         for _ in range(3):
                             yield
-                    else:
-                        print("No valid target to shoot at - target is dead or inactive")
 
 
 
@@ -655,6 +672,35 @@ class Level:
 
         return elimination_count
 
+    def spawn_aliens_with_types(self, alien_types):
+        """Spawns aliens of specific types provided in a list."""
+        count = len(alien_types)
+        spawn_margin = 300
+        spawn_area_width = WIDTH + 1000
+        spawn_area_height = HEIGHT + 1000
+        quad_nums = list(range(count))
+
+        for i in range(count):
+            alien_type = alien_types[i]
+            quadrant = random.choice(quad_nums)
+            if quadrant == 0:  # Top-right
+                x = random.randint(WIDTH // 2 + 200, spawn_area_width)
+                y = random.randint(0, HEIGHT // 2 - 200)
+            elif quadrant == 1:  # Bottom-right
+                x = random.randint(WIDTH // 2 + 200, spawn_area_width)
+                y = random.randint(HEIGHT // 2 + 200, spawn_area_height)
+            elif quadrant == 2:  # Top-left
+                x = random.randint(0, WIDTH // 2 - 200)
+                y = random.randint(0, HEIGHT // 2 - 200)
+            else:  # Bottom-left
+                x = random.randint(0, WIDTH // 2 - 200)
+                y = random.randint(HEIGHT // 2 + 200, spawn_area_height)
+
+            if quad_nums:
+                quad_nums.remove(quadrant)
+
+            self.aliens.append(Alien(x, y, alien_type))
+
     def draw_disappearing_aliens(self, surface):
         for alien in self.aliens:
             if alien.disappearing:
@@ -752,6 +798,9 @@ class Level:
         if self.curr_nearest_alien and self.curr_nearest_alien.active:
             direction = self.curr_nearest_alien.pos - self.player.pos
             self.player.angle = math.degrees(math.atan2(-direction.y, direction.x))
+
+        if self.level_id == 2 and hasattr(self, 'draw_level_intro'):
+            self.draw_level_intro(screen)
 
         self.draw_disappearing_aliens(screen)
 
