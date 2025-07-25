@@ -1,38 +1,107 @@
-from levels.base_level import Level
 import pygame
+import os
+from levels.base_level import Level
 from entities.alien import Alien
-from core.constants import BLUE, RED
+from core.constants import WIDTH, WHITE, GREEN, DARK_GRAY, BLUE, CYAN, HEIGHT
 
 pygame.init()
 pygame.font.init()
+
 
 class Level1(Level):
     def __init__(self, code_font, title_font, menu_font):
         super().__init__(code_font, title_font, menu_font)
         self.level_id = 1
-        self.target = Alien(60, 160, "target")
+        self.enable_wasd = False
+        self.total_aliens_to_eliminate = 1
 
-        # Create a simple image for the target
-        target_image = pygame.Surface((60, 60), pygame.SRCALPHA)
-        pygame.draw.circle(target_image, RED, (30, 30), 30)  # Draw red circle
-        self.target.image = target_image
 
-        # Also ensure player has an image
-        player_image = pygame.Surface((50, 50), pygame.SRCALPHA)
-        pygame.draw.rect(player_image, BLUE, (0, 0, 50, 50))
-        self.player.image = player_image
+        self.load_assets()
+
+
+        self.aliens.clear()
+        target_alien = Alien(WIDTH // 2 - 250, HEIGHT // 2, "Player")
+        self.aliens.append(target_alien)
+        self.curr_nearest_alien = target_alien
+
+
+        self.code_blocks.clear()
+        self.commands = {
+            "move_up": {"color": (0, 100, 200), "text": "Move Up"},
+            "move_left": {"color": (200, 100, 0), "text": "Move Left"},
+            "move_right": {"color": (20, 100, 0), "text": "Move Right"},
+            "move_down": {"color": (250, 100, 0), "text": "Move Down"},
+            "shoot": {"color": (250, 100, 0), "text": "Shoot"}
+        }
+        super()._init_commands()
+
+    def load_assets(self):
+        """
+        A specific asset loader for Level 1.
+        It ONLY loads the terrain and player assets, avoiding the
+        parent's method that causes a KeyError.
+        """
+        try:
+            ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+
+
+            raw_tile = pygame.image.load(os.path.join(ASSETS_PATH, "tile.png"))
+            self.tile_img = pygame.transform.scale(raw_tile, (self.TILE_SIZE, self.TILE_SIZE))
+
+
+            self.hero_img = pygame.image.load(os.path.join(ASSETS_PATH, "hero.png"))
+            self.hero_img = pygame.transform.scale(self.hero_img, (55, 55))
+
+
+            self.walk_frames = [
+                pygame.transform.scale(pygame.image.load(os.path.join(ASSETS_PATH, "walk1.png")), (50, 50)),
+                pygame.transform.scale(pygame.image.load(os.path.join(ASSETS_PATH, "walk2.png")), (50, 50)),
+                pygame.transform.scale(pygame.image.load(os.path.join(ASSETS_PATH, "walk3.png")), (50, 50))
+            ]
+        except Exception as e:
+            print(f"Error in Level 1 asset loading: {e}")
+
+    def update(self, dt, keys):
+        """Update logic for Level 1."""
+        self.player.update_bullets(self.aliens, self.level_id, dt)
+        if self.aliens:
+            target = self.aliens[0]
+            if target.health <= 0 and not self.level_completed:
+                self.level_completed = True
+                self.current_popup = "victory"
+                self.aliens_eliminated = 1
 
     def draw_game(self, screen, mouse_pos, event):
+        """Draws all elements for Level 1."""
         self.update_camera()
-        self.target.offset_pos = self.target.pos - self.camera_offset
+        self.draw_terrain(screen)
+
+
+        if self.aliens:
+            target = self.aliens[0]
+            try:
+                ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+                target_img_path = os.path.join(ASSETS_PATH, "target.png")
+                target_img = pygame.transform.scale(pygame.image.load(target_img_path).convert_alpha(), (60, 60))
+                target.offset_pos = target.pos - self.camera_offset
+                target.draw(surface=screen, image=target_img)
+            except Exception as e:
+                print(f"Error loading target.png: {e}")
+                pygame.draw.circle(screen, (255, 0, 0), target.offset_pos, 30)
+
         self.player.offset_pos = self.player.pos - self.camera_offset
-        self.target.draw_player(screen, self.target.image)
-        self.target.draw_health_bar(screen)
-        self.player.draw_player(screen, self.player.image)
-        # self.draw_code_blocks(screen)
+        self.player.draw_player(screen, self.walk_frames[0])
         self.run_button.draw(screen)
         self.reset_button.draw(screen)
-        if self.level_id >= 3:
-            self.player.draw_health_bar(screen)
-        #self.draw_bullets(screen)
-        #self.draw_popups(screen, mouse_pos, event)
+        self.draw_bullets(screen)
+        self.draw_elimination_counter(screen)
+        self.draw_popups(screen, mouse_pos, event)
+        self.draw_level_intro(screen)
+
+    def draw_level_intro(self, surface):
+        """Draws a simple mission briefing for Level 1."""
+        font = pygame.font.Font(None, 28)
+        text = "Mission: Use the command blocks to destroy the target!"
+        text_surface = font.render(text, True, WHITE)
+        text_rect = text_surface.get_rect(center=(WIDTH // 2, 30))
+        surface.blit(text_surface, text_rect)

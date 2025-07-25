@@ -106,51 +106,63 @@ class Player:
         self.bullets.append(bullet)
         return bullet
 
+
     def update_bullets(self, targets, level_id, dt, camera_offset=None):
-        """Update player bullets and check collisions, respecting alien shields."""
-        if not isinstance(targets, (list, tuple)):
-            targets = [targets] if targets else []
+            """Update player bullets and check collisions, respecting alien shields."""
+            if not isinstance(targets, (list, tuple)):
+                targets = [targets] if targets else []
 
-        for bullet in self.bullets[:]:
-            if not bullet.active:
-                continue
-
-            bullet.pos.x += bullet.dx * dt
-            bullet.pos.y += bullet.dy * dt
-
-            player_to_bullet = bullet.pos - self.pos
-            if player_to_bullet.length() > 2000:
-                bullet.active = False
-                continue
-
-            for target in targets:
-                if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
+            for bullet in self.bullets[:]:
+                if not bullet.active:
                     continue
 
-                distance = bullet.pos.distance_to(target.pos)
-                collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
+                bullet.pos.x += bullet.dx * dt
+                bullet.pos.y += bullet.dy * dt
 
-                if distance < collision_threshold:
-                    if not getattr(target, 'shielded', False):
-                        alien_type = getattr(target, 'name', None)
-                        if bullet.bullet_type == alien_type:
-                            print(f"CORRECT HIT! Bullet '{bullet.bullet_type}' hit Alien '{alien_type}'.")
-                            target.health -= DAMAGE_PER_HIT
-                            print(f"Target health is now: {target.health}")
-                            if target.health <= 0:
-                                target.active = False
-                                print(f"Alien '{alien_type}' destroyed!")
-                        else:
-                            print(f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
-
-                    else:
-                        print(f"HIT FAILED! Alien '{getattr(target, 'name', 'Unknown')}' shield is active.")
-
-
+                player_to_bullet = bullet.pos - self.pos
+                if player_to_bullet.length() > 2000:
                     bullet.active = False
-                    break
+                    continue
 
-        self.bullets = [bullet for bullet in self.bullets if bullet.active]
+                for target in targets:
+                    if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
+                        continue
+
+                    distance = bullet.pos.distance_to(target.pos)
+                    collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
+
+                    if distance < collision_threshold:
+                        if not getattr(target, 'shielded', False):
+                            should_damage = False
+
+                            if level_id == 1:
+                                should_damage = True
+
+
+                            else:
+                                alien_type = getattr(target, 'name', None)
+                                if bullet.bullet_type == alien_type:
+                                    should_damage = True
+                                else:
+                                    print(
+                                        f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
+
+
+                            if should_damage:
+                                target.health -= DAMAGE_PER_HIT
+                                print(f"HIT! Target health is now: {target.health}")
+
+
+                        else:
+
+                            print(f"HIT FAILED! Alien '{getattr(target, 'name', 'Unknown')}' shield is active.")
+
+
+                        bullet.active = False
+                        break
+
+
+            self.bullets = [bullet for bullet in self.bullets if bullet.active]
 
 
 

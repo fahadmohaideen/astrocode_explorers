@@ -120,7 +120,8 @@ while running:
             next(level1.cmd_gen)
         except (StopIteration, TypeError):
             pass
-        level1.update(dt)
+        keys = pygame.key.get_pressed()
+        level1.update(dt, keys)
 
 
     elif current_state == STATE_LEVEL2:
