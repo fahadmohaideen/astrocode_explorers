@@ -1,4 +1,3 @@
-
 from levels.level3 import Level3
 import pygame
 from core.constants import FOR_LOOP_COLOR

@@ -1,8 +1,11 @@
+import os
 import pygame
 import math
 import random
-import os
-ASSETS_PATH = os.path.join("levels", "assets")
+import sys
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+ASSETS_PATH = os.path.join(os.path.dirname(script_dir), "levels", "assets")
 
 from core.constants import (
     WIDTH, HEIGHT, ORANGE, BLUE, GREEN, RED, WHITE, CYAN,
@@ -21,6 +24,10 @@ class Bullet:
         self.color = color or RED
         self.image = None
         self._load_bullet_image()
+        if self.image:
+            angle = math.degrees(math.atan2(-self.dy, self.dx))
+            self.image = pygame.transform.rotate(self.image, angle)
+            self.radius = max(self.image.get_width(), self.image.get_height()) // 2
         if self.image:
             self.rendered_image = self._create_optimized_surface()
 

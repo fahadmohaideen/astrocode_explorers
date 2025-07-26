@@ -20,7 +20,7 @@ class Level1(Level):
 
 
         self.aliens.clear()
-        target_alien = Alien(WIDTH // 2 - 250, HEIGHT // 2, "Player")
+        target_alien = Alien(WIDTH // 2 + 200, HEIGHT // 2 - 300, "Player")
         self.aliens.append(target_alien)
         self.curr_nearest_alien = target_alien
 
@@ -36,11 +36,6 @@ class Level1(Level):
         super()._init_commands()
 
     def load_assets(self):
-        """
-        A specific asset loader for Level 1.
-        It ONLY loads the terrain and player assets, avoiding the
-        parent's method that causes a KeyError.
-        """
         try:
             ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 

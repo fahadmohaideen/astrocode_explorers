@@ -24,12 +24,37 @@ class Level3(Level2):
         self.shoot_index = -1"""
         self.run_click_limit = 5
         self.run_clicks_used = 0
+        self.show_briefing = True
+        self.briefing_start_time = 0
+        self.briefing_duration_ms = 8000
         self.commands["for_loop"] = {"color": FOR_LOOP_COLOR, "text": "For Loop"}
         self.commands["if_statement"] = {"color": FOR_LOOP_COLOR, "text": "if"}
         super()._init_commands()
         for alien in self.aliens:
             alien.shielded = True
         self.load_assets()
+
+    def draw_level_intro(self, surface):
+        if not self.show_briefing:
+            return
+
+        current_time = pygame.time.get_ticks()
+        if self.briefing_start_time == 0:
+            self.briefing_start_time = current_time
+
+        if current_time - self.briefing_start_time > self.briefing_duration_ms:
+            self.show_briefing = False
+            return
+
+
+        instruction = "Mission: Run attempts are limited! Use the 'for loop' for efficiency."
+
+        font = pygame.font.Font(None, 28)
+        text_surface = font.render(instruction, True, WHITE)
+
+        text_rect = text_surface.get_rect(center=(WIDTH // 2, 200))
+
+        surface.blit(text_surface, text_rect)
 
     def load_assets(self):
 
@@ -84,7 +109,7 @@ class Level3(Level2):
                 screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 30))
 
 
-                menu_btn = Button(popup_rect.centerx - 100, popup_rect.bottom - 100, 200, 50,
+                menu_btn = Button(popup_rect.centerx - 135, popup_rect.bottom - 100, 275, 50,
                                   "Return to Menu", BLUE, CYAN, self.menu_font)
                 menu_btn.draw(screen)
                 if menu_btn.is_clicked(mouse_pos, event):

@@ -52,10 +52,10 @@ class Level:
         button_size = 30
         margin = 10
         self.exit_button_rect = pygame.Rect(
-            self.code_area.right - button_size - margin,  # X position
-            self.code_area.top + margin,  # Y position
-            button_size,  # Width
-            button_size  # Height
+            self.code_area.right - button_size - margin,
+            self.code_area.top + margin,
+            button_size,
+            button_size
         )
         self.level_completed = False
         self.current_popup = None
@@ -218,7 +218,6 @@ class Level:
                 if self.level_id == 2:
                     indicator_color = WHITE
 
-                # Draw arrow pointing to alien
                 pygame.draw.circle(screen, indicator_color,
                                    (int(indicator_pos.x), int(indicator_pos.y)), 10)
                 pygame.draw.line(screen, indicator_color,
@@ -274,9 +273,6 @@ class Level:
         for alien in self.aliens:
             for bullet in alien.bullets:
                 bullet.draw(surface, self.camera_offset)
-        """if self.alien.bullets:
-            for bullet in self.alien.bullets:
-                bullet.draw(screen)"""
 
     def draw_player(self, surface):
         body_rect = self.hero_img.get_rect(
@@ -724,7 +720,7 @@ class Level:
 
     def draw_popups(self, screen, mouse_pos, event):
         if self.level_completed and self.current_popup == "victory":
-            popup_rect = pygame.Rect(WIDTH // 2 - 300, HEIGHT // 2 - 100, 500, 300)
+            popup_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 150, 500, 300)
             pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
             pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
 
@@ -798,7 +794,7 @@ class Level:
             direction = self.curr_nearest_alien.pos - self.player.pos
             self.player.angle = math.degrees(math.atan2(-direction.y, direction.x))
 
-        if self.level_id == 2 and hasattr(self, 'draw_level_intro'):
+        if hasattr(self, 'draw_level_intro'):
             self.draw_level_intro(screen)
 
         self.draw_disappearing_aliens(screen)
