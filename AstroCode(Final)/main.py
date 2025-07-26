@@ -152,10 +152,16 @@ while running:
         except (StopIteration, TypeError):
             pass
         level4.update(dt, keys)
+        if not level4.moving:
+            walk_frame_index = 0
+        if level4.moving and walk_frame_delay >= 10:
+            walk_frame_index = (walk_frame_index + 1) % 3
+            walk_frame_delay = 0
         if level4.game_view:
-            level4.draw_game(screen, mouse_pos, event)
+            level4.draw_game(screen, mouse_pos, event, walk_frame_index)
         if level4.code_editor:
-            level4.draw_code_blocks(screen)
+            level4.draw_game(screen, mouse_pos, event, walk_frame_index)
+            level4.draw_panel(screen)
             level4.run_button.draw(screen)
             level4.reset_button.draw(screen)
 

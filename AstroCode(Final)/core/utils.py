@@ -4,7 +4,6 @@ import math
 
 from core.constants import WIDTH, HEIGHT, WHITE
 
-
 stars = []
 for _ in range(200):
     x = pygame.math.Vector2(

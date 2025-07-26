@@ -27,6 +27,13 @@ class Alien:
         self.shield_timer = pygame.time.get_ticks()
         self.shield_down_duration = 2000
         self.shield_up_duration = 5000
+        self.is_pushed = False
+        self.pushback_timer = 0.0
+        self.pushback_duration = 0.3
+        self.pushback_deceleration = 0.90
+        self.pushback_velocity = pygame.Vector2(0, 0)
+        self.direction = pygame.Vector2(0, 0)
+        self.bullet_vec = pygame.Vector2(0, 0)
 
     def update_shield(self):
         current_time = pygame.time.get_ticks()
@@ -96,3 +103,60 @@ class Alien:
             pygame.draw.circle(shield_surface, (0, 100, 255, 100), (shield_radius, shield_radius), shield_radius)
             surface.blit(shield_surface, (self.offset_pos.x - shield_radius, self.offset_pos.y - shield_radius))
         self.draw_health_bar(surface)
+
+    def apply_pushback(self, hit_direction, force=200.0):
+        self.is_pushed = True
+        self.pushback_timer = self.pushback_duration
+        if hit_direction.length() > 0:
+            self.pushback_velocity = hit_direction.normalize() * force
+        else:
+            self.pushback_velocity = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * force
+
+    def update_pushback(self, dt):
+        if self.is_pushed and self.pushback_timer > 0:
+            self.pos += self.pushback_velocity * dt
+            self.pushback_velocity *= self.pushback_deceleration
+            self.pushback_timer -= dt
+
+            if self.pushback_timer <= 0 or self.pushback_velocity.length() < 5.0:
+                self.pushback_timer = 0
+                self.is_pushed = False
+                self.pushback_velocity = pygame.Vector2(0, 0)
+
+    def move_randomly(self, dt, boundary_width, boundary_height, player_pos=None):
+        if self.is_pushed:
+            self.update_pushback(dt)
+            return
+
+        distance_to_player = float('inf')
+        if player_pos:
+            direction_to_player = player_pos - self.pos
+            distance_to_player = direction_to_player.length()
+
+        if player_pos and 100 < distance_to_player < 300:
+            chase_speed = 70
+            self.direction = direction_to_player.normalize()
+            new_pos = self.pos + self.direction * chase_speed * dt
+
+        elif player_pos and distance_to_player <= 100:
+            self.direction = direction_to_player.normalize()
+            self.bullet_vec = self.direction
+            return
+
+        else:
+            speed = 50
+            if random.random() < 0.01:
+                self.direction = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
+                if self.direction.length() > 0:
+                    self.direction = self.direction.normalize()
+            if self.direction.length() > 0:
+                new_pos = self.pos + self.direction * speed * dt
+            else:
+                new_pos = self.pos
+
+        new_pos.x = max(0, min(new_pos.x, boundary_width))
+        new_pos.y = max(0, min(new_pos.y, boundary_height))
+
+        self.pos = new_pos
+        if self.direction.length() > 0:
+            self.bullet_vec = self.direction
