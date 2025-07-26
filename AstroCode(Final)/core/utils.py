@@ -1,10 +1,8 @@
-# Utility functions like collision checks
-
 import pygame
 import random
 import math
 
-from core.constants import WIDTH, HEIGHT, WHITE # Import necessary constants
+from core.constants import WIDTH, HEIGHT, WHITE
 
 # Starfield background variables (global to this module)
 stars = []

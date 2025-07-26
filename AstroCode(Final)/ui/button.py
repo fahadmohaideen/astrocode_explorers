@@ -1,4 +1,3 @@
-# Button class for menu and levels
 import pygame
 from core.constants import WHITE, BLUE, CYAN, GREEN, WIDTH, HEIGHT # Import necessary constants
 
