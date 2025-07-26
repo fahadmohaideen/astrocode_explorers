@@ -30,7 +30,8 @@ class Player:
         self.death_animation_timer = 0
         self.death_animation_duration = 90
         try:
-            assets_path = os.path.join("levels", "assets")
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            assets_path = os.path.join(os.path.dirname(script_dir), "levels", "assets")
             self.gun_image_original = pygame.image.load(os.path.join(assets_path, "gun.png")).convert_alpha()
             self.gun_image_original = pygame.transform.scale(self.gun_image_original, (60, 20))
         except Exception as e:
@@ -144,6 +145,10 @@ class Player:
                                 else:
                                     print(
                                         f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
+
+                                    if level_id == 2:
+                                        self.health -= (PLAYER_MAX_HEALTH / 3)
+                                        print(f"PENALTY APPLIED! Player health is now: {self.health}")
 
 
                             if should_damage:
