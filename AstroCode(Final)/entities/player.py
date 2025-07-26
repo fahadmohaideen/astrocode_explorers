@@ -147,6 +147,11 @@ class Player:
                                     print(
                                         f"INCORRECT HIT. Bullet '{bullet.bullet_type}' does not damage Alien '{alien_type}'.")
 
+                                    if level_id == 2:
+                                        # Subtract 1/3 of the player's max health.
+                                        self.health -= (PLAYER_MAX_HEALTH / 3)
+                                        print(f"PENALTY APPLIED! Player health is now: {self.health}")
+
 
                             if should_damage:
                                 target.health -= DAMAGE_PER_HIT

@@ -22,6 +22,10 @@ class Bullet:
         self.image = None
         self._load_bullet_image()
         if self.image:
+            angle = math.degrees(math.atan2(-self.dy, self.dx))
+            self.image = pygame.transform.rotate(self.image, angle)
+            self.radius = max(self.image.get_width(), self.image.get_height()) // 2
+        if self.image:
             self.rendered_image = self._create_optimized_surface()
 
     def _load_bullet_image(self):

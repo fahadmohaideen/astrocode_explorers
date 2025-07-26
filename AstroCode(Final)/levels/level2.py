@@ -7,6 +7,7 @@ import pygame
 import copy
 import os
 import random
+from ui.button import Button
 
 pygame.init()
 pygame.font.init()
@@ -65,6 +66,14 @@ class Level2(Level):
         super().handle_events(event, mouse_pos)
 
     def update(self, dt, keys):
+        if self.player.health <= 0 and not self.player.is_dying:
+            self.player.is_dying = True
+            print("Player has been defeated by penalties!")
+            self.current_popup = "failure"
+
+
+        if self.player.is_dying:
+            return
         movement = pygame.Vector2(0, 0)
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             movement.x -= self.player.speed * dt
@@ -118,6 +127,24 @@ class Level2(Level):
             if pygame.time.get_ticks() - self.popup_start_time > self.popup_duration_ms:
                 self.proceed_to_level3 = True
             return
+
+        if self.current_popup == "failure":
+            popup_rect = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 100, 400, 200)
+            pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
+            pygame.draw.rect(screen, RED, popup_rect, 2, border_radius=10)
+
+
+            text = self.title_font.render("Mission Failed!", True, RED)
+            screen.blit(text, (popup_rect.centerx - text.get_width() // 2, popup_rect.top + 30))
+
+
+            menu_btn = Button(popup_rect.centerx - 135, popup_rect.bottom - 100, 275, 50,
+                              "Return to Menu", BLUE, CYAN, self.menu_font)
+            menu_btn.draw(screen)
+            if menu_btn.is_clicked(mouse_pos, event):
+                self.exit_to_levels = True
+            return
+
         super().draw_popups(screen, mouse_pos, event)
 
     def draw_level_intro(self, surface):
@@ -135,7 +162,7 @@ class Level2(Level):
             return
 
 
-        instruction = "Use 'if' to scan alien type, then 'shoot' with the matching bullet!"
+        instruction = "Mission: Use 'if' to scan alien type, then 'shoot' with the matching bullet! You have 3 attempts."
 
 
         font = pygame.font.Font(None, 24)

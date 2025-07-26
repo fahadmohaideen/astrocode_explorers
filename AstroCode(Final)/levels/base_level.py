@@ -796,7 +796,7 @@ class Level:
     def draw_popups(self, screen, mouse_pos, event):
         """To be implemented by subclasses"""
         if self.level_completed and self.current_popup == "victory":
-            popup_rect = pygame.Rect(WIDTH // 2 - 300, HEIGHT // 2 - 100, 500, 300)
+            popup_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 150, 500, 300)
             pygame.draw.rect(screen, DARK_GRAY, popup_rect, border_radius=10)
             pygame.draw.rect(screen, GREEN, popup_rect, 2, border_radius=10)
 
@@ -879,7 +879,7 @@ class Level:
             direction = self.curr_nearest_alien.pos - self.player.pos
             self.player.angle = math.degrees(math.atan2(-direction.y, direction.x))
 
-        if self.level_id == 2 and hasattr(self, 'draw_level_intro'):
+        if hasattr(self, 'draw_level_intro'):
             self.draw_level_intro(screen)
 
         self.draw_disappearing_aliens(screen)
