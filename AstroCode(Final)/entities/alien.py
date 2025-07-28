@@ -50,7 +50,7 @@ class Alien:
                 continue
             bullet.pos.x += bullet.dx * dt
             bullet.pos.y += bullet.dy * dt
-            if not (-100 < bullet.pos.x < WIDTH + 100 and -100 < bullet.pos.y < HEIGHT + 100):
+            if not bullet.pos.distance_to(player.pos) < 2000:
                 bullet.active = False
                 continue
             if not player.is_dying:
