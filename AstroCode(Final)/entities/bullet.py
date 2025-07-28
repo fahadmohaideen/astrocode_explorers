@@ -14,21 +14,23 @@ from core.constants import (
 
 
 class Bullet:
-    def __init__(self, x=0, y=0, dx=0, dy=0, bullet_type="", color=None, radius=12):
+    def __init__(self, x=0, y=0, dx=0, dy=0, bullet_type="", color=None, radius=12, active=True):
         self.pos = pygame.Vector2(x, y)
         self.dx = dx
         self.dy = dy
         self.radius = radius
-        self.active = True
+        self.active = active
         self.bullet_type = bullet_type
-        self.color = color or RED
+        self.color_initial = color
+        self.color = color
         self.image = None
+        if not self.color:
+            self.color = RED
         self._load_bullet_image()
         if self.image:
             angle = math.degrees(math.atan2(-self.dy, self.dx))
             self.image = pygame.transform.rotate(self.image, angle)
             self.radius = max(self.image.get_width(), self.image.get_height()) // 2
-        if self.image:
             self.rendered_image = self._create_optimized_surface()
 
     def _load_bullet_image(self):
@@ -47,7 +49,7 @@ class Bullet:
             "Alien Type C": "bullet_blue.png",
         }
 
-        if self.bullet_type in bullet_images:
+        if self.bullet_type in bullet_images and self.color_initial:
             try:
                 img_path = os.path.join(ASSETS_PATH, bullet_images[self.bullet_type])
                 if os.path.exists(img_path):

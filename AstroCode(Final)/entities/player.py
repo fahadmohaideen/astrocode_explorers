@@ -11,13 +11,14 @@ from core.constants import (
 
 class Player:
     def __init__(self, x=0, y=0, width=0, height=0, angle=0, speed=0):
-        self.body_rect = None
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.pos = pygame.Vector2(self.x + self.width/2, self.y + self.height/2)
         self.offset_pos = self.pos
+        self.body_rect = pygame.Rect(self.offset_pos.x - self.width / 2, self.offset_pos.y - self.height / 2,
+                                     self.width, self.height)
         self.angle = angle
         self.speed = speed
         self.bullets = []
@@ -29,6 +30,7 @@ class Player:
         self.is_dying = False
         self.death_animation_timer = 0
         self.death_animation_duration = 90
+        self.bullet_index = 0
         try:
             script_dir = os.path.dirname(os.path.abspath(__file__))
             assets_path = os.path.join(os.path.dirname(script_dir), "levels", "assets")
@@ -94,7 +96,8 @@ class Player:
 
     def shoot_bullet(self, bullet_type, direction, color):
         spawn_pos = self.pos.copy()
-
+        if not direction:
+            direction = pygame.Vector2(0, 0)
         bullet = Bullet(
             x=spawn_pos.x,
             y=spawn_pos.y,
@@ -117,7 +120,7 @@ class Player:
 
                 bullet.pos.x += bullet.dx * dt
                 bullet.pos.y += bullet.dy * dt
-
+                
                 player_to_bullet = bullet.pos - self.pos
                 if player_to_bullet.length() > 2000:
                     bullet.active = False
@@ -126,11 +129,12 @@ class Player:
                 for target in targets:
                     if not hasattr(target, 'active') or not target.active or getattr(target, 'health', 1) <= 0:
                         continue
-
+                        
                     distance = bullet.pos.distance_to(target.pos)
                     collision_threshold = getattr(target, 'width', 50) / 2 + bullet.radius
 
                     if distance < collision_threshold:
+                        self.bullet_index += 1
                         if not getattr(target, 'shielded', False):
                             should_damage = False
 

@@ -1,6 +1,5 @@
 import pygame
-from pygame.examples.grid import TILE_SIZE
-
+TILE_SIZE = 32
 pygame.init()
 WIDTH, HEIGHT = 1000, 800
 

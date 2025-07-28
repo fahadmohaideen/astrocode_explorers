@@ -6,7 +6,7 @@ from core.constants import WIDTH, HEIGHT, WHITE
 class Level4(Level3):
     def __init__(self, code_font, title_font, menu_font):
         super().__init__(code_font, title_font, menu_font)
-
+        self.commands["while_loop"] = {"color": (255, 51, 153), "text": "while"}
         self.level_id = 4
         self.enable_wasd = True
         self.total_aliens_to_eliminate = 3

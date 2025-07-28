@@ -76,7 +76,10 @@ class Alien:
         distance_to_player = (player.pos - self.pos).length()
         if (curr_time - self.prev_time >= self.shoot_cooldown and
                 distance_to_player < self.detection_range):
-            self.shoot_bullet(player.pos, ALIEN_TYPES.get(self.name, RED))
+            if dt == 0:
+                self.shoot_bullet(player.pos, None)
+            else:
+                self.shoot_bullet(player.pos, ALIEN_TYPES.get(self.name, RED))
             self.prev_time = curr_time
 
     def draw_health_bar(self, surface):

@@ -437,7 +437,7 @@ class Level:
                 else:
                     cmd.editing_text = ""
 
-        if self.run_button.is_clicked(mouse_pos, event):
+        if self.run_button.is_clicked(mouse_pos, event) and event.button == 1:
             print("=== RUN BUTTON CLICKED ===")
             self.code_editor = False
             self.game_view = True
@@ -446,7 +446,7 @@ class Level:
             print(f"Ready to execute with target: {self.curr_nearest_alien}")
 
 
-        if self.reset_button.is_clicked(mouse_pos, event):
+        if self.reset_button.is_clicked(mouse_pos, event) and event.button == 1:
             self.main_code = []
 
     def execute_commands(self, cmd_list, parent_cmd):
@@ -483,16 +483,21 @@ class Level:
 
                     else:
                         self._update_nearest_alien()
+                        bullet_type = cmd.shoot_bullet_type if hasattr(cmd, 'shoot_bullet_type') else "Player"
+                        color = ALIEN_TYPES.get(bullet_type, ORANGE)
                         print(f"Attempting to shoot. Current target: {self.curr_nearest_alien}")
                         if self.curr_nearest_alien and self.curr_nearest_alien.active and self.curr_nearest_alien.health > 0:
                             direction = (self.curr_nearest_alien.pos - self.player.pos).normalize()
                         else:
                             print("No valid target to shoot at - target is dead or inactive")
+                            bullet = self.player.shoot_bullet(
+                            bullet_type=bullet_type,
+                            direction=direction,
+                            color=None
+                        )
 
 
                     if direction:
-                        bullet_type = cmd.shoot_bullet_type if hasattr(cmd, 'shoot_bullet_type') else "Player"
-                        color = ALIEN_TYPES.get(bullet_type, ORANGE)
 
                         bullet = self.player.shoot_bullet(
                             bullet_type=bullet_type,

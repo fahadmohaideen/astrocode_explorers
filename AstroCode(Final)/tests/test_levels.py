@@ -9,8 +9,8 @@ from entities.commands import Command
 import core.constants as constants
 from tests.mocks.pygame_mock import MockRect, MockVector2
 import pygame
-from orbital.tests.conftest import player_instance
-
+from .conftest import player_instance
+from pygame.math import Vector2
 
 
 
@@ -24,9 +24,9 @@ def test_base_level_initialization(level_instance):
 
 def test_level1_initialization(level1_instance):
     assert level1_instance.level_id == 1
-    assert isinstance(level1_instance.target, Alien)
-    assert level1_instance.target.x == 60
-    assert level1_instance.target.y == 160
+    assert isinstance(level1_instance.target_alien, Alien)
+    assert level1_instance.target_alien.pos.x == 730
+    assert level1_instance.target_alien.pos.y == 130
 
 def test_level2_initialization(level2_instance):
     assert level2_instance.level_id == 2
@@ -124,7 +124,7 @@ def test_level_execute_commands_if_statement(level_instance):
 
 def test_level_execute_commands_shoot(level_instance, alien_instance):
     level_instance.curr_nearest_alien = alien_instance
-    shoot_cmd = Command(cmd_type="shoot", shoot_bullet_type="Type A",
+    shoot_cmd = Command(cmd_type="shoot", shoot_bullet_type="Alien Type A",
                         code_font=level_instance.code_font, rect=MockRect(0,0,10,10))
     level_instance.main_code = [shoot_cmd]
 
@@ -137,7 +137,7 @@ def test_level_execute_commands_shoot(level_instance, alien_instance):
         pass
 
     assert len(level_instance.player.bullets) == initial_bullets + 1
-    assert level_instance.player.bullets[-1].bullet_type == "Type A"
+    assert level_instance.player.bullets[-1].bullet_type == "Alien Type A"
 
 def test_level_handle_events_drag_and_drop(level_instance):
     level_instance.code_blocks = [Command(cmd_type="move_up", code_font=level_instance.code_font, rect=MockRect(0,0,10,10))]
@@ -181,17 +181,28 @@ def test_level_handle_events_reset_button(level_instance):
     assert len(level_instance.main_code) == 0
 
 def test_level2_update_player_movement(level2_instance):
-    initial_player_pos = MockVector2(level2_instance.player.pos.x, level2_instance.player.pos.y)
+    from pygame.math import Vector2
+    
+    initial_pos = Vector2(100, 100)
+    level2_instance.player.pos = initial_pos.copy()
+    
     dt = 0.1
-    keys_pressed = {pygame.K_w: True, pygame.K_a: False, pygame.K_s: False, pygame.K_d: False, pygame.K_UP: True, pygame.K_LEFT: False, pygame.K_DOWN: False, pygame.K_RIGHT: False}
+    keys_pressed = {
+        pygame.K_w: True, pygame.K_a: False, pygame.K_s: False, pygame.K_d: False,
+        pygame.K_UP: True, pygame.K_LEFT: False, pygame.K_DOWN: False, pygame.K_RIGHT: False
+    }
+    
     level2_instance.update(dt, keys_pressed)
-    assert level2_instance.player.pos.y == initial_player_pos.y - level2_instance.player.speed * dt
+    expected_y = initial_pos.y - level2_instance.player.speed * dt
+    assert abs(level2_instance.player.pos.y - expected_y) < 0.001 
     assert level2_instance.moving
-
-    level2_instance.player.pos = MockVector2(initial_player_pos.x, initial_player_pos.y)
-    keys_pressed = {pygame.K_w: False, pygame.K_a: False, pygame.K_s: False, pygame.K_d: False, pygame.K_UP: False, pygame.K_LEFT: False, pygame.K_DOWN: False, pygame.K_RIGHT: False}
+    
+    pos_after_move = level2_instance.player.pos.copy()
+    
+    keys_pressed = {k: False for k in keys_pressed}
     level2_instance.update(dt, keys_pressed)
-    assert level2_instance.player.pos.y == initial_player_pos.y
+    
+    assert level2_instance.player.pos == pos_after_move
     assert not level2_instance.moving
 
 def test_level2_update_alien_near_detection(level2_instance, alien_instance):

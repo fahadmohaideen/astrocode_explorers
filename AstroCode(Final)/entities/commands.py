@@ -9,7 +9,7 @@ from core.constants import (
 class Command:
     def __init__(self, cmd_type, iterations=1, nested_commands=None, rect=None, conditions=None, condition_var=None,
                  condition_op=None, condition_val=None, editing_condition_part=None, code_font=None, depth=0,
-                 original_rect=None):
+                 original_rect=None, shoot_bullet_type=None):
         self.cmd_type = cmd_type
         self.code_font = code_font
         self.iterations = iterations

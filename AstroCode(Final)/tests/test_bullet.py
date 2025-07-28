@@ -3,8 +3,8 @@ import core.constants as constants
 from tests.mocks.pygame_mock import MockVector2
 
 def test_bullet_initialization(bullet_instance):
-    assert bullet_instance.x == 0
-    assert bullet_instance.y == 0
+    assert bullet_instance.pos.x == 0
+    assert bullet_instance.pos.y == 0
     assert bullet_instance.dx == 1
     assert bullet_instance.dy == 0
     assert bullet_instance.radius == constants.BULLET_RADIUS

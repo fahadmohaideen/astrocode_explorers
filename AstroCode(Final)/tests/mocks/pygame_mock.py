@@ -17,18 +17,62 @@ class MockVector2:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-
+        
+    def copy(self):
+        return MockVector2(self.x, self.y)
+        
     def __add__(self, other):
-        return MockVector2(self.x + other.x, self.y + other.y)
+        x = int(self.x) if hasattr(self.x, '__int__') else self.x
+        y = int(self.y) if hasattr(self.y, '__int__') else self.y
+        
+        if hasattr(other, 'x') and hasattr(other, 'y'):
+            other_x = int(other.x) if hasattr(other.x, '__int__') else other.x
+            other_y = int(other.y) if hasattr(other.y, '__int__') else other.y
+            return MockVector2(x + other_x, y + other_y)
+        return MockVector2(x + other, y + other)
 
     def __sub__(self, other):
-        return MockVector2(self.x - other.x, self.y - other.y)
+        x = int(self.x) if hasattr(self.x, '__int__') else self.x
+        y = int(self.y) if hasattr(self.y, '__int__') else self.y
+        
+        if hasattr(other, 'x') and hasattr(other, 'y'):
+            other_x = int(other.x) if hasattr(other.x, '__int__') else other.x
+            other_y = int(other.y) if hasattr(other.y, '__int__') else other.y
+            return MockVector2(x - other_x, y - other_y)
+        return MockVector2(x - other, y - other)
 
-    def __mul__(self, scalar):
-        return MockVector2(self.x * scalar, self.y * scalar)
-
+    def __mul__(self, other):
+        x = int(self.x) if hasattr(self.x, '__int__') else self.x
+        y = int(self.y) if hasattr(self.y, '__int__') else self.y
+        
+        if hasattr(other, 'x') and hasattr(other, 'y'):
+            other_x = int(other.x) if hasattr(other.x, '__int__') else other.x
+            other_y = int(other.y) if hasattr(other.y, '__int__') else other.y
+            return MockVector2(x * other_x, y * other_y)
+        return MockVector2(x * other, y * other)
+        
     def __truediv__(self, scalar):
-        return MockVector2(self.x / scalar, self.y / scalar)
+        if scalar == 0:
+            return MockVector2(0, 0)
+        x = int(self.x) if hasattr(self.x, '__int__') else self.x
+        y = int(self.y) if hasattr(self.y, '__int__') else self.y
+        return MockVector2(x / scalar, y / scalar)
+        
+    def __radd__(self, other):
+        return self.__add__(other)
+        
+    def __rsub__(self, other):
+        if hasattr(other, 'x') and hasattr(other, 'y'):
+            return MockVector2(other.x - self.x, other.y - self.y)
+        return MockVector2(other - self.x, other - self.y)
+        
+    def __rmul__(self, other):
+        return self.__mul__(other)
+        
+    def __rtruediv__(self, scalar):
+        if scalar == 0:
+            return MockVector2(0, 0)
+        return MockVector2(scalar / self.x, scalar / self.y)
 
     def distance_to(self, other):
         return ((self.x - other.x)**2 + (self.y - other.y)**2)**0.5
@@ -38,6 +82,9 @@ class MockVector2:
         if mag == 0:
             return MockVector2(0, 0)
         return MockVector2(self.x / mag, self.y / mag)
+        
+    def __repr__(self):
+        return f'MockVector2({self.x}, {self.y})'
 
     def length(self):
         return (self.x**2 + self.y**2)**0.5

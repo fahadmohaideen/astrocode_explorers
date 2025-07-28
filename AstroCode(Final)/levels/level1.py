@@ -20,9 +20,9 @@ class Level1(Level):
 
 
         self.aliens.clear()
-        target_alien = Alien(WIDTH // 2 + 200, HEIGHT // 2 - 300, "Player")
-        self.aliens.append(target_alien)
-        self.curr_nearest_alien = target_alien
+        self.target_alien = Alien(WIDTH // 2 + 200, HEIGHT // 2 - 300, "Player")
+        self.aliens.append(self.target_alien)
+        self.curr_nearest_alien = self.target_alien
 
 
         self.code_blocks.clear()

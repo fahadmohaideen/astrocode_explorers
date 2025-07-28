@@ -4,7 +4,7 @@ from unittest.mock import patch
 import core.constants as constants
 from tests.mocks.pygame_mock import MockVector2
 from tests.te5t_cases import player_alien_pos
-from orbital.tests.conftest import alien_instance
+from tests.conftest import alien_instance
 
 
 def test_player_initialization(player_instance):
@@ -21,7 +21,7 @@ def test_player_initialization(player_instance):
 
 def test_player_take_damage(player_instance, alien_instance):
     initial_health_simulated = player_instance.health
-    with patch('orbital.core.constants.PLAYER_AWARENESS_RANGE', 200.0):
+    with patch('core.constants.PLAYER_AWARENESS_RANGE', 200.0):
         for player_pos, alien_pos in player_alien_pos:
             alien_instance.pos = MockVector2(alien_pos[0], alien_pos[1])
             player_instance.pos = MockVector2(player_pos[0], player_pos[1])
