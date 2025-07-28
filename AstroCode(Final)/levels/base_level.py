@@ -498,7 +498,8 @@ class Level:
 
 
                     if direction:
-
+                        bullet_type = cmd.shoot_bullet_type if hasattr(cmd, 'shoot_bullet_type') else "Player"
+                        color = ALIEN_TYPES.get(bullet_type, ORANGE)
                         bullet = self.player.shoot_bullet(
                             bullet_type=bullet_type,
                             direction=direction,
