@@ -1,4 +1,3 @@
-
 import sys
 from unittest.mock import Mock, patch
 import math
@@ -97,6 +96,11 @@ class MockVector2:
         angle_rad = math.acos(max(-1, min(1, dot_product / magnitude_product)))
         return math.degrees(angle_rad)
 
+    def __eq__(self, other):
+        if not isinstance(other, MockVector2):
+            return False
+        return self.x == other.x and self.y == other.y
+        
     def __repr__(self):
         return f"MockVector2({self.x}, {self.y})"
 
@@ -178,5 +182,3 @@ mock_utils_module = Mock()
 mock_utils_module.draw_starfield = Mock()
 mock_utils_module.update_starfield = Mock()
 sys.modules['core.utils'] = mock_utils_module
-
-

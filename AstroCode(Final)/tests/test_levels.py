@@ -206,6 +206,8 @@ def test_level2_update_player_movement(level2_instance):
     assert not level2_instance.moving
 
 def test_level2_update_alien_near_detection(level2_instance, alien_instance):
+    level2_instance.player.pos.x = 100
+    level2_instance.player.pos.y = 100
     alien_instance.pos = MockVector2(level2_instance.player.pos.x + 500, level2_instance.player.pos.y + 500)
     level2_instance.aliens = [alien_instance]
     level2_instance.update(0.1, {pygame.K_w: False, pygame.K_a: False, pygame.K_s: False, pygame.K_d: False, pygame.K_UP: False, pygame.K_LEFT: False, pygame.K_DOWN: False, pygame.K_RIGHT: False})
@@ -217,6 +219,7 @@ def test_level2_update_alien_near_detection(level2_instance, alien_instance):
     alien_instance.pos = MockVector2(level2_instance.player.pos.x + 50, level2_instance.player.pos.y + 50)
     level2_instance.aliens = [alien_instance]
     level2_instance.update(0.1, {pygame.K_w: False, pygame.K_a: False, pygame.K_s: False, pygame.K_d: False, pygame.K_UP: False, pygame.K_LEFT: False, pygame.K_DOWN: False, pygame.K_RIGHT: False})
+    level2_instance._update_nearest_alien()
     assert level2_instance.var_dict["Alien near"][0]
     assert level2_instance.var_dict[alien_instance.name][0]
     assert level2_instance.var_dict[alien_instance.name][1] == alien_instance

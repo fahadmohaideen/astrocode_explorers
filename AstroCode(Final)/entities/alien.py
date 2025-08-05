@@ -34,6 +34,7 @@ class Alien:
         self.pushback_velocity = pygame.Vector2(0, 0)
         self.direction = pygame.Vector2(0, 0)
         self.bullet_vec = pygame.Vector2(0, 0)
+        self.bullet_index = 0
 
     def update_shield(self):
         current_time = pygame.time.get_ticks()
@@ -57,6 +58,7 @@ class Alien:
                 distance = bullet.pos.distance_to(player.pos)
                 collision_threshold = player.width / 2 + bullet.radius
                 if distance < collision_threshold:
+                    self.bullet_index += 1
                     player.health -= DAMAGE_PER_HIT
                     bullet.active = False
         self.bullets = [b for b in self.bullets if b.active]

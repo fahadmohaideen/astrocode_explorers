@@ -2,6 +2,7 @@
 import pytest
 from unittest.mock import patch
 import core.constants as constants
+from core.constants import BULLET_SPEED
 from tests.mocks.pygame_mock import MockVector2
 from tests.te5t_cases import player_alien_pos
 from tests.conftest import alien_instance
@@ -29,9 +30,8 @@ def test_player_take_damage(player_instance, alien_instance):
             assert player_instance.pos.distance_to(alien_instance.pos) < constants.PLAYER_AWARENESS_RANGE
 
             alien_instance.shoot_bullet(
-                bullet_type="test",
-                alien_pos=player_instance.pos,
-                color=constants.ORANGE
+                target_pos=player_instance.pos,
+                color=None
             )
             assert len(alien_instance.bullets) == 1
             bullet = alien_instance.bullets[0]
@@ -49,13 +49,13 @@ def test_player_take_damage(player_instance, alien_instance):
 
 def test_player_shoot_bullet(player_instance):
     target_pos = MockVector2(200, 100)
-    player_instance.shoot_bullet(bullet_type="circle", alien_pos=target_pos, color=constants.ORANGE)
+    player_instance.shoot_bullet(bullet_type="circle", direction=(target_pos - player_instance.pos), color=constants.ORANGE)
     assert len(player_instance.bullets) == 1
     bullet = player_instance.bullets[0]
     assert bullet.active
     assert bullet.bullet_type == "circle"
     assert bullet.color == constants.ORANGE
-    assert pytest.approx(bullet.dx * bullet.dx + bullet.dy * bullet.dy, rel=1e-5) == 1.0
+    assert pytest.approx((bullet.dx/BULLET_SPEED)**2 + (bullet.dy/BULLET_SPEED)**2, rel=1e-5) == (player_instance.pos.distance_to(target_pos))**2
 
 """def test_player_update_bullets_collision(player_instance, alien_instance):
     alien_instance.pos = MockVector2(player_instance.pos.x + 50, player_instance.pos.y)
