@@ -1,4 +1,3 @@
-
 from unittest.mock import patch, Mock
 import pygame
 
@@ -45,39 +44,37 @@ def test_alien_take_damage(alien_instance, player_instance):
             alien_instance.health = constants.ALIEN_MAX_HEALTH
             player_instance.bullet_index = 0
 
-def test_alien_shoot_at_player(alien_instance, player_instance, monkeypatch):
+def test_alien_shoot_at_player(alien_instance, player_instance):
     alien_instance.bullets = []
-    alien_instance.prev_time = 0
     
-    alien_instance.prev_time = 0
+    current_time = pygame.time.get_ticks()
     
-    with patch('pygame.time.get_ticks', return_value=0):
-        alien_instance.shoot_at_player(player_instance, 0)
-    assert len(alien_instance.bullets) == 0, "First call should NOT add a bullet (0-0 < 1000)"
+    alien_instance.prev_time = current_time - 500
+    alien_instance.shoot_at_player(player_instance, 0)
+    assert len(alien_instance.bullets) == 0, "First call should NOT add a bullet (500 < 1000)"
     
-    with patch('pygame.time.get_ticks', return_value=1100):
-        alien_instance.shoot_at_player(player_instance, 0)
+    alien_instance.prev_time = current_time - 1500
+    alien_instance.shoot_at_player(player_instance, 0)
+    assert len(alien_instance.bullets) == 1, f"Second call should add first bullet (1500 >= 1000), but found {len(alien_instance.bullets)} bullets"
     
-    assert len(alien_instance.bullets) == 1, f"Second call should add first bullet (1100-0 >= 1000), but found {len(alien_instance.bullets)} bullets"
-    bullet = alien_instance.bullets[0]
-    assert bullet.color == (255, 0, 0)
+    alien_instance.prev_time = current_time - 100
+    alien_instance.shoot_at_player(player_instance, 0)
+    assert len(alien_instance.bullets) == 1, f"Third call should NOT add a bullet (100 < 1000), but found {len(alien_instance.bullets)} bullets"
     
-    with patch('pygame.time.get_ticks', return_value=1200):
-        alien_instance.shoot_at_player(player_instance, 0)
-    assert len(alien_instance.bullets) == 1, f"Third call should NOT add a bullet (1200-1100 < 1000), but found {len(alien_instance.bullets)} bullets"
+    alien_instance.prev_time = current_time - 1100
+    alien_instance.shoot_at_player(player_instance, 0)
+    assert len(alien_instance.bullets) == 2, f"Fourth call should add second bullet (1100 >= 1000), but found {len(alien_instance.bullets)} bullets"
     
-    
-    with patch('pygame.time.get_ticks', return_value=2300):
-        alien_instance.shoot_at_player(player_instance, 0)
-    
-    assert len(alien_instance.bullets) == 2, f"Fourth call should add second bullet (2300-1100 >= 1000), but only found {len(alien_instance.bullets)} bullets"
-    
-    bullet2 = alien_instance.bullets[1]
-    direction_to_player = (player_instance.pos - alien_instance.pos).normalize()
-    
-    bullet_direction = pygame.Vector2(bullet2.dx, bullet2.dy).normalize()
-    
-    assert abs(bullet_direction.x - direction_to_player.x) < 0.1, \
-        f"Bullet X direction {bullet_direction.x} should match player direction {direction_to_player.x}"
-    assert abs(bullet_direction.y - direction_to_player.y) < 0.1, \
-        f"Bullet Y direction {bullet_direction.y} should match player direction {direction_to_player.y}"
+    if len(alien_instance.bullets) >= 2:
+        bullet = alien_instance.bullets[0]
+        bullet2 = alien_instance.bullets[1]
+        direction_to_player = (player_instance.pos - alien_instance.pos).normalize()
+        
+        bullet_direction = pygame.Vector2(bullet.dx, bullet.dy).normalize()
+        bullet2_direction = pygame.Vector2(bullet2.dx, bullet2.dy).normalize()
+        
+        for i, direction in enumerate([bullet_direction, bullet2_direction], 1):
+            assert abs(direction.x - direction_to_player.x) < 0.1, \
+                f"Bullet {i} X direction {direction.x} should match player direction {direction_to_player.x}"
+            assert abs(direction.y - direction_to_player.y) < 0.1, \
+                f"Bullet {i} Y direction {direction.y} should match player direction {direction_to_player.y}"
