@@ -154,10 +154,10 @@ class Level2(Level):
         if current_time - self.briefing_start_time > self.briefing_duration_ms:
             self.show_briefing = False
             return
-        instruction = "Use 'if' to scan alien type, then 'shoot' with the matching bullet! You have 3 attempts."
+        instruction = "WASD UNLOCKED! Use 'if' to scan alien type, then 'shoot' with the matching bullet! You have 3 attempts."
         font = pygame.font.Font(None, 24)
         text_surface = font.render(instruction, True, WHITE)
-        text_rect = text_surface.get_rect(center=(WIDTH // 2, 150))
+        text_rect = text_surface.get_rect(center=(WIDTH // 2, 175))
         surface.blit(text_surface, text_rect)
 
     def draw_incorrect_hit_popup(self, surface):
