@@ -28,6 +28,9 @@ class Command:
         self.val_box = None
         self.code_font_size = CODE_FONT_SIZE
         self.original_rect = original_rect
+        self.block_start_y = 0
+        self.cmd_clicked = False
+        self.initial_mouse_pos_y = None
 
         self.color = self._get_color()
         self.text = self._get_text()
@@ -72,91 +75,109 @@ class Command:
     def draw(self, surface, x, y, width, indent=0, is_nested=False):
         pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
         pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
+        if self.cmd_clicked:
+            pygame.draw.rect(surface, (0, 255, 0), self.rect, 2, border_radius=10)
 
         if self.is_loop():
             self._draw_loop_header(surface)
         elif self.is_conditional():
             self._draw_conditional_header("if", surface)
         else:
-            self._draw_regular_command(surface)
+            if self.cmd_type == "shoot":
+                resized_code_font = pygame.font.Font(None, math.floor(
+                (CODE_FONT_SIZE) * pow(0.8, self.depth)))
+                shoot_text = resized_code_font.render(self.text, True, WHITE)
+                surface.blit(shoot_text, (self.rect.x + (10 / ORIGINAL_CMD_WIDTH) * self.rect.width, self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
-        if self.cmd_type == "shoot":
-            type_colors = {
-                "Alien Type A": (220, 80, 80),
-                "Alien Type B": (80, 220, 80),
-                "Alien Type C": (80, 80, 220)
-            }
-            color = type_colors.get(self.shoot_bullet_type, (150, 150, 150))
+                box_x = self.rect.x + (10 / ORIGINAL_CMD_WIDTH) * self.rect.width + shoot_text.get_width() + (
+                    10 / ORIGINAL_CMD_WIDTH) * self.rect.width
+                box_width = (90 / ORIGINAL_CMD_WIDTH) * self.rect.width
+                box_height = shoot_text.get_height()
+                box_y = self.rect.y + 5/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
 
-            self.shoot_type_rect = pygame.Rect(self.rect.right - 85, self.rect.centery - 15, 80, 30)
+                self.shoot_type_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+                type_colors = {
+                    "Alien Type A": (220, 80, 80),
+                    "Alien Type B": (80, 220, 80),
+                    "Alien Type C": (80, 80, 220)
+                }
+                color = type_colors.get(self.shoot_bullet_type, (150, 150, 150))
 
-            pygame.draw.rect(surface, color, self.shoot_type_rect, border_radius=5)
-            type_text = self.code_font.render(self.shoot_bullet_type.replace("Alien ", ""), True, WHITE)
-            surface.blit(type_text, (self.shoot_type_rect.x + 5, self.shoot_type_rect.y + 5))
+                pygame.draw.rect(surface, color, self.shoot_type_rect, border_radius=5)
+                type_text = resized_code_font.render(self.shoot_bullet_type.replace("Alien ", ""), True, WHITE)
+                surface.blit(type_text, (self.shoot_type_rect.x + 20/ORIGINAL_CMD_WIDTH * self.shoot_type_rect.width, self.shoot_type_rect.y + 20/ORIGINAL_CMD_HEIGHT_LOOP * self.shoot_type_rect.height))
+            else:
+                self._draw_regular_command(surface)
 
         if self.is_loop() or self.is_conditional() or self.cmd_type == "while_loop":
-            nested_y = y + ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, self.depth)
+            nested_y = 0
             for nested_cmd in self.nested_commands:
                 nested_height = nested_cmd.draw(
                     surface, x, nested_y, width - 10, indent + 5, True
                 )
                 nested_y += nested_height
 
-            self.rect.height = max(ORIGINAL_CMD_HEIGHT_LOOP, nested_y - y)
+            self.rect.height = nested_y + self.original_rect.height
 
         return self.rect.height
 
     def _draw_regular_command(self, surface):
-        pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
-        pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
-        text = self.code_font.render(self.text, True, WHITE)
-        surface.blit(text, (self.rect.x + 5, self.rect.y + 5))
+        #pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
+        #pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
+        header_text = self.text
+        resized_code_font = pygame.font.Font(None, math.floor((CODE_FONT_SIZE)*pow(0.8, self.depth)))
+        text_surf = resized_code_font.render(header_text, True, WHITE)
+        surface.blit(text_surf, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
+        self.block_start_y = text_surf.get_height() + 20/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
 
     def _draw_loop_header(self, surface):
         header_text = "Repeat"
-        resized_code_font = pygame.font.Font(None, math.floor((CODE_FONT_SIZE/ORIGINAL_CMD_WIDTH)*self.original_rect.width))
+        resized_code_font = pygame.font.Font(None, math.floor((CODE_FONT_SIZE)*pow(0.8, self.depth)))
         text_surf = resized_code_font.render(header_text, True, WHITE)
-        surface.blit(text_surf, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (5/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
+        surface.blit(text_surf, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
         box_start_x = self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width + text_surf.get_width() + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width
         box_width = (60/ORIGINAL_CMD_WIDTH)*self.original_rect.width
         box_height = text_surf.get_height()
-        box_y = self.original_rect.y + (5/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height
+        box_y = self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height
         self.iter_box = pygame.Rect(box_start_x, box_y, box_width, box_height)
 
         pygame.draw.rect(surface, BLACK, self.iter_box)
         pygame.draw.rect(surface, WHITE, self.iter_box, 1)
 
+        self.block_start_y = text_surf.get_height() + 20/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
+
         iter_text = str(self.iterations)
-        iter_surf = self.code_font.render(iter_text, True, WHITE)
+        iter_surf = resized_code_font.render(iter_text, True, WHITE)
         iter_rect = iter_surf.get_rect(center=self.iter_box.center)
         surface.blit(iter_surf, iter_rect)
 
         times_text = "times"
         text_surf_1 = resized_code_font.render(times_text, True, WHITE)
-        surface.blit(text_surf_1, (box_start_x + box_width + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (5/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
+        surface.blit(text_surf_1, (box_start_x + box_width + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
     def _draw_conditional_header(self, txt, surface):
-        pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
-        pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
-        resized_code_font = pygame.font.Font(None, math.floor(
-            (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+        #pygame.draw.rect(surface, self.color, self.rect, border_radius=3)
+        #pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
+        resized_code_font = pygame.font.Font(None, math.floor((CODE_FONT_SIZE)*pow(0.8, self.depth)))
         if_text = resized_code_font.render(txt, True, WHITE)
-        surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.original_rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
+        surface.blit(if_text, (self.original_rect.x + (10/ORIGINAL_CMD_WIDTH)*self.original_rect.width, self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height))
 
         box_start_x = self.rect.x + (10/ORIGINAL_CMD_WIDTH)*self.rect.width + if_text.get_width() + (10/ORIGINAL_CMD_WIDTH)*self.rect.width
-        box_width = (90/ORIGINAL_CMD_WIDTH)*self.rect.width
+        box_width = (130/ORIGINAL_CMD_WIDTH)*self.rect.width
         op_width = (30/ORIGINAL_CMD_WIDTH)*self.rect.width
-        box_height = 20
-        box_y = self.rect.y + 5
+        box_height = if_text.get_height() + 10/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
+        box_y = self.rect.y + (10/ORIGINAL_CMD_HEIGHT_LOOP)*self.original_rect.height
 
         self.var_box = pygame.Rect(box_start_x, box_y, box_width, box_height)
         pygame.draw.rect(surface, BLACK, self.var_box)
         pygame.draw.rect(surface, WHITE, self.var_box, 1)
         if hasattr(self, 'condition_var') and self.condition_var:
             var_text = resized_code_font.render(self.condition_var, True, WHITE)
-            surface.blit(var_text, (self.var_box.x + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, self.var_box.y + 3))
+            surface.blit(var_text, (self.var_box.x + (5/ORIGINAL_CMD_WIDTH)*self.rect.width, self.var_box.y + 3/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height))
 
+        self.block_start_y = if_text.get_height() + 20/ORIGINAL_CMD_HEIGHT_LOOP * self.original_rect.height
+        
         if hasattr(self, 'editing_condition_part'):
             cursor_box = {
                 'var': self.var_box,
@@ -168,8 +189,7 @@ class Command:
                 pygame.draw.rect(surface, CYAN, cursor_box, 2)
 
     def _draw_shoot_command_content(self, surface):
-        resized_code_font = pygame.font.Font(None, math.floor(
-            (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+        resized_code_font = pygame.font.Font(None, math.floor((CODE_FONT_SIZE)*pow(0.8, self.depth)))
         shoot_text = resized_code_font.render(self.text, True, WHITE)
         surface.blit(shoot_text, (self.rect.x + (5 / ORIGINAL_CMD_WIDTH) * self.rect.width, self.rect.y + 3))
 
@@ -185,8 +205,7 @@ class Command:
         pygame.draw.rect(surface, WHITE, self.shoot_bullet_type_box, 1)
 
         if self.shoot_bullet_type:
-            resized_code_font = pygame.font.Font(None, math.floor(
-                (CODE_FONT_SIZE / ORIGINAL_CMD_WIDTH) * self.original_rect.width))
+            resized_code_font = pygame.font.Font(None, math.floor((CODE_FONT_SIZE)*pow(0.8, self.depth)))
             type_text = resized_code_font.render(self.shoot_bullet_type, True, WHITE)
             type_rect = type_text.get_rect(center=self.shoot_bullet_type_box.center)
             surface.blit(type_text, type_rect)

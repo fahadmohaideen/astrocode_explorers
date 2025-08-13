@@ -36,6 +36,7 @@ class Level:
         ]
         self.player_angle = 0
         self.dragging = None
+        self.dragging_out = None
         self.main_code = []
         self.bullets = []
         self.bullet_pool = []
@@ -120,6 +121,9 @@ class Level:
         self.animation_speed = 0.2
         self.aliens_eliminated = 0
         self.total_aliens_to_eliminate = 3
+        self.edit_mode = False
+        self.cmd_clicked = None
+        self.cmd_clicked_parent = None
         #self.spawn_aliens(3)
 
     def reset_level(self, code_font, title_font, menu_font):
@@ -288,14 +292,16 @@ class Level:
         end_y = gun_center[1] - gun_length * math.cos(math.radians(self.player_angle))
         pygame.draw.line(surface, ORANGE, gun_center, (end_x, end_y), 3)
 
-    def check_alignment(self, cmd_list):
+    def check_alignment(self, cmd_list, parent_cmd):
         if not cmd_list:
             return
         for a in range(len(cmd_list)):
             if a > 0:
                 cmd_list[a].rect.y = cmd_list[a-1].rect.height + cmd_list[a-1].rect.y
-            if cmd_list[a].is_loop():
-                self.check_alignment(cmd_list[a].nested_commands)
+            else:
+                cmd_list[a].rect.y = parent_cmd.rect.y + parent_cmd.block_start_y if parent_cmd else cmd_list[a].rect.y
+            if cmd_list[a].cmd_type == "for_loop" or cmd_list[a].cmd_type == "if_statement" or cmd_list[a].cmd_type == "while_loop":
+                self.check_alignment(cmd_list[a].nested_commands, cmd_list[a])
 
     def draw_code_blocks(self, surface):
         pygame.draw.rect(surface, DARK_GRAY, self.commands_area, border_radius=5)
@@ -317,7 +323,8 @@ class Level:
                 cmd.rect.y,
                 self.code_area.width - 20
             )
-        self.check_alignment(self.main_code)
+            if not self.dragging_out:
+                self.check_alignment(self.main_code, None)
 
     def _cycle_value(self, current, options_dict):
         if not options_dict:
@@ -400,9 +407,8 @@ class Level:
                 self.game_view = True
                 print("Command panel closed.")
                 return
-            if self.handle_command_clicks(self.main_code, mouse_pos):
+            if self.handle_command_clicks(self.main_code, mouse_pos, None):
                 return
-
 
             for block in self.code_blocks:
                 if block.rect and block.rect.collidepoint(mouse_pos):
@@ -417,13 +423,55 @@ class Level:
                 self.code_editor = True
                 self.game_view = False
 
+        elif event.type == pygame.MOUSEMOTION and self.dragging_out:
+            cmd = self.dragging_out["cmd"]
+            parent_list = self.dragging_out["parent_cmd"]
+            
+            mouse_y = mouse_pos[1]
+            cmd.rect.y = mouse_y - self.dragging_out["offset"][1]
+            
+            if len(parent_list) > 1:
+                current_idx = parent_list.index(cmd)
+                new_pos = current_idx
+                
+                for i, other_cmd in enumerate(parent_list):
+                    if other_cmd == cmd:
+                        continue
+                        
+                    if mouse_y < other_cmd.rect.centery and current_idx > i:
+                        new_pos = i
+                        break
+                    elif mouse_y > other_cmd.rect.centery and current_idx < i:
+                        new_pos = i + 1
+                
+                new_pos = max(0, min(new_pos, len(parent_list) - 1))
+                
+                if new_pos != current_idx:
+                    cmd = parent_list.pop(current_idx)
+                    parent_list.insert(new_pos, cmd)
+            
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if self.dragging:
+                if self.code_area.collidepoint(mouse_pos):
+                    self.handle_cmd_drop(self.main_code, mouse_pos, 0, None)
+                self.dragging = None
+            
+            if self.dragging_out:
+                self.dragging_out = None
+            
 
-        elif event.type == pygame.MOUSEBUTTONUP and self.dragging:
-            if self.code_area.collidepoint(mouse_pos):
-                self.handle_cmd_drop(self.main_code, mouse_pos, 0, None)
-            self.dragging = None
 
         elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                if self.cmd_clicked:
+                    if self.cmd_clicked_parent:
+                        self.cmd_clicked_parent.nested_commands.remove(self.cmd_clicked)
+                        self.cmd_clicked = None
+                        self.cmd_clicked_parent = None
+                    else:
+                        self.main_code.remove(self.cmd_clicked)
+                        self.cmd_clicked = None
+                        self.cmd_clicked_parent = None
             if self.editing_loop_cmd is not None:
                 cmd = self.editing_loop_cmd
                 if event.key == pygame.K_RETURN:
@@ -531,23 +579,39 @@ class Level:
                 self.curr_nearest_alien = alien
 
         if self.curr_nearest_alien:
-            print(f"Targeting {self.curr_nearest_alien.name} at distance {min_dist:.2f}")
+            print(f"Targeting {self.curra_nearest_alien.name} at distance {min_dist:.2f}")
         else:
             print("No valid targets found")
-
-    def handle_command_clicks(self, cmd_list, mouse_pos):
+    
+    def handle_command_clicks(self, cmd_list, mouse_pos, parent_cmd):
         for cmd in cmd_list:
             if cmd.cmd_type == "shoot" and cmd.shoot_type_rect and cmd.shoot_type_rect.collidepoint(mouse_pos):
-
                 current_index = cmd.bullet_types.index(cmd.shoot_bullet_type)
                 next_index = (current_index + 1) % len(cmd.bullet_types)
                 cmd.shoot_bullet_type = cmd.bullet_types[next_index]
                 return True
-
-
             if cmd.nested_commands:
-                if self.handle_command_clicks(cmd.nested_commands, mouse_pos):
+                if self.handle_command_clicks(cmd.nested_commands, mouse_pos, cmd):
                     return True
+            if cmd.rect and cmd.rect.collidepoint(mouse_pos):
+                if not self.dragging_out:
+                    offset_x = mouse_pos[0] - cmd.rect.x
+                    offset_y = mouse_pos[1] - cmd.rect.y
+                    self.dragging_out = {
+                        "cmd": cmd,
+                        "parent_cmd": parent_cmd.nested_commands if parent_cmd else self.main_code,
+                        "offset": (offset_x, offset_y),
+                        "initial_pos": (cmd.rect.x, cmd.rect.y),
+                        "original_index": self.main_code.index(cmd) if cmd in self.main_code else -1
+                    }
+                
+                cmd.cmd_clicked = True
+                self.edit_mode = True
+                return True
+
+            else:
+                cmd.cmd_clicked = False
+        
         return False
 
 
@@ -566,7 +630,7 @@ class Level:
                 cmd_list[a].rect.y = cmd_list[a-1].rect.height + cmd_list[a-1].rect.y
             y_pos = prev_cmd.rect.bottom
         else:
-            y_pos = cmd_rect.y + 20
+            y_pos = cmd_rect.y + parent_cmd.block_start_y if parent_cmd else 30
 
         if command_type == "for_loop":
             new_cmd = Command(
@@ -576,16 +640,16 @@ class Level:
                 rect=pygame.Rect(
                     parent_cmd.rect.x + 10  if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height*0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_LOOP * 0.5,
                 ),
                 depth= 0 if not parent_cmd else parent_cmd.depth + 1,
                 code_font=self.code_font,
                 original_rect = pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_LOOP * 0.5,
                 )
             )
         elif command_type == "if_statement":
@@ -596,8 +660,8 @@ class Level:
                 rect=pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_CONDITIONAL * 0.5,
                 ),
                 conditions={},
                 depth=0 if not parent_cmd else parent_cmd.depth + 1,
@@ -605,8 +669,8 @@ class Level:
                 original_rect = pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_CONDITIONAL * 0.5,
                 )
             )
 
@@ -618,8 +682,8 @@ class Level:
                 rect=pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i ,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_CONDITIONAL * 0.5,
                 ),
                 conditions={},
                 depth=0 if not parent_cmd else parent_cmd.depth + 1,
@@ -627,8 +691,8 @@ class Level:
                 original_rect = pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20 * i,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_CONDITIONAL * 0.5,
                 )
             )
 
@@ -638,16 +702,16 @@ class Level:
                 rect=pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i ,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_LOOP * 0.5,
                 ),
                 depth=0 if not parent_cmd else parent_cmd.depth + 1,
                 code_font=self.code_font,
                 original_rect = pygame.Rect(
                     parent_cmd.rect.x + 10 if parent_cmd else self.code_area.x + 20,
                     y_pos,
-                    ORIGINAL_CMD_WIDTH - 20*i ,
-                    ORIGINAL_CMD_HEIGHT_LOOP * math.pow(0.5, i),
+                    parent_cmd.rect.width - 20 if parent_cmd else ORIGINAL_CMD_WIDTH - 20,
+                    parent_cmd.original_rect.height * 0.5 if parent_cmd else ORIGINAL_CMD_HEIGHT_LOOP * 0.5,
                 )
             )
 

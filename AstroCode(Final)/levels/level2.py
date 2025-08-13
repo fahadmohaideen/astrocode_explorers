@@ -18,6 +18,10 @@ class Level2(Level):
         self.level_id = 2
         self.code_blocks = []
         self.commands["if_statement"] = {"color": FOR_LOOP_COLOR, "text": "if"}
+        self.commands.pop("move_up")
+        self.commands.pop("move_left")
+        self.commands.pop("move_right")
+        self.commands.pop("move_down")
         self.var_dict.update({"Alien near": [False, None, None],
                               "Alien Type A": [False, None, None],
                               "Alien Type B": [False, None, None],
