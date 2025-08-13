@@ -579,7 +579,7 @@ class Level:
                 self.curr_nearest_alien = alien
 
         if self.curr_nearest_alien:
-            print(f"Targeting {self.curra_nearest_alien.name} at distance {min_dist:.2f}")
+            print(f"Targeting {self.curr_nearest_alien.name} at distance {min_dist:.2f}")
         else:
             print("No valid targets found")
     
